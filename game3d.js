@@ -6,13 +6,13 @@ import { mergeGeometries } from './vendor/addons/utils/BufferGeometryUtils.js';
 const UNIT = 0.01;
 const SCALE = (value) => value * UNIT;
 const SHADOW_GEOMETRY = new THREE.CircleGeometry(0.34, 18);
+const CROWD_SHADOW_GEOMETRY = new THREE.CircleGeometry(0.24, 16);
 const ACTOR_HEIGHT = 1.86;
-const CROWD_RENDER_STRIDE = 24;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const point = (x, y, height = 0) => new THREE.Vector3(SCALE(x), height, SCALE(y));
 
 const ROLE_STYLE = {
-  guest: { suit: ['#7a7770', '#3c4b5a', '#62504d', '#49554e', '#7a6b57'], skin: '#fff2e2', gear: 'guest' },
+  guest: { suit: ['#7b817f', '#536a7d', '#7c5e56', '#597466', '#90785c'], skin: '#fff2e2', gear: 'guest' },
   executive: { suit: ['#202d3b', '#303740', '#343c48'], skin: '#fff0dd', gear: 'executive' },
   security: { suit: ['#18242b', '#202a30'], skin: '#fff2e2', gear: 'security' },
   technician: { suit: ['#855a3c', '#786044'], skin: '#fff0df', gear: 'technician' },
@@ -164,11 +164,11 @@ export function createSilentCoast3D(canvas) {
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 13, 10);
 
-  const hemi = new THREE.HemisphereLight('#eef2ed', '#516058', 2.25);
+  const hemi = new THREE.HemisphereLight('#eef2ed', '#516058', 1.55);
   scene.add(hemi);
-  const fill = new THREE.AmbientLight('#d4d9d5', 0.42);
+  const fill = new THREE.AmbientLight('#d4d9d5', 0.18);
   scene.add(fill);
-  const keyLight = new THREE.DirectionalLight('#fff4dc', 2.7);
+  const keyLight = new THREE.DirectionalLight('#fff4dc', 2.0);
   keyLight.position.set(-8, 16, 10);
   keyLight.castShadow = false;
   scene.add(keyLight);
@@ -181,15 +181,23 @@ export function createSilentCoast3D(canvas) {
   actorShadowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   actorShadowMesh.frustumCulled = false;
   actorShadowGroup.add(actorShadowMesh);
+  const crowdShadowGroup = new THREE.Group();
+  const crowdShadowMesh = new THREE.InstancedMesh(CROWD_SHADOW_GEOMETRY, basic('#101513', 0.17, { depthWrite: false }), 1120);
+  crowdShadowMesh.count = 0;
+  crowdShadowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  crowdShadowMesh.frustumCulled = false;
+  crowdShadowGroup.add(crowdShadowMesh);
   const actorGroup = new THREE.Group();
   const crowdGroup = new THREE.Group();
   const helperGroup = new THREE.Group();
   const fxGroup = new THREE.Group();
-  scene.add(environment, environmentLights, staticProps, actorShadowGroup, crowdGroup, actorGroup, helperGroup, fxGroup);
+  scene.add(environment, environmentLights, staticProps, actorShadowGroup, crowdShadowGroup, crowdGroup, actorGroup, helperGroup, fxGroup);
 
   const modelLoader = new GLTFLoader();
   const templates = new Map();
   const actors = new Map();
+  const crowdVisuals = [];
+  let crowdVisualIndicesKey = '';
   const propVisuals = new Map();
   const actorsLastSeen = new Map();
   let propHaloMesh = null;
@@ -203,31 +211,12 @@ export function createSilentCoast3D(canvas) {
   let environmentKey = '';
   let environmentTheme = null;
   let actorSerial = 0;
-  let crowdAccumulator = 1;
   let cameraYaw = 0;
   let cameraZoom = 1;
-  let cameraDistance = 11.8;
+  let cameraDistance = 10.0;
   let dragPointer = null;
   let disposed = false;
 
-  const crowdClothingColors = ['#637b75', '#8f7863', '#4f6c60', '#756d7b'].map((color) => new THREE.Color(color));
-  const crowdSkinColors = ['#d8b293', '#ead1b4', '#c69e7f', '#dfb69a'].map((color) => new THREE.Color(color));
-  const crowdBodyGeometry = new THREE.CapsuleGeometry(0.08, 0.78, 2, 5);
-  const crowdHeadGeometry = new THREE.SphereGeometry(0.065, 6, 4);
-  const crowdArmGeometry = new THREE.CapsuleGeometry(0.037, 0.33, 2, 5);
-  const crowdLegGeometry = new THREE.CapsuleGeometry(0.052, 0.39, 2, 5);
-  const crowdBody = new THREE.InstancedMesh(crowdBodyGeometry, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 1120);
-  const crowdHeads = new THREE.InstancedMesh(crowdHeadGeometry, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 1120);
-  const crowdArms = new THREE.InstancedMesh(crowdArmGeometry, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 2240);
-  const crowdLegs = new THREE.InstancedMesh(crowdLegGeometry, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 2240);
-  for (const mesh of [crowdBody, crowdHeads, crowdArms, crowdLegs]) {
-    mesh.count = 0;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.frustumCulled = false;
-    mesh.castShadow = false;
-  }
-  const crowdPantsColors = crowdClothingColors.map((color) => color.clone().multiplyScalar(0.72));
-  crowdGroup.add(crowdBody, crowdHeads, crowdArms, crowdLegs);
   function resize(width, height, pixelRatio = 1) {
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height));
@@ -611,13 +600,13 @@ export function createSilentCoast3D(canvas) {
     if (propHaloMesh?.instanceColor) propHaloMesh.instanceColor.needsUpdate = true;
     const night = environmentKey === 'night';
     if (events.lightsOut) {
-      keyLight.intensity = night ? 0.18 : 0.35;
-      hemi.intensity = night ? 0.24 : 0.42;
-      fill.intensity = 0.05;
+      keyLight.intensity = night ? 0.16 : 0.3;
+      hemi.intensity = night ? 0.22 : 0.38;
+      fill.intensity = 0.04;
     } else {
-      keyLight.intensity = night ? 0.62 : 1.65;
-      hemi.intensity = night ? 0.8 : 1.65;
-      fill.intensity = night ? 0.16 : 0.2;
+      keyLight.intensity = night ? 0.54 : 1.55;
+      hemi.intensity = night ? 0.7 : 1.22;
+      fill.intensity = night ? 0.12 : 0.16;
     }
   }
 
@@ -673,6 +662,19 @@ export function createSilentCoast3D(canvas) {
       };
       node.material = Array.isArray(node.material) ? node.material.map(cloneMaterial) : cloneMaterial(node.material);
     });
+    const headBone = [];
+    model.traverse((node) => { if (node.isBone && /head/i.test(node.name)) headBone.push(node); });
+    if (headBone.length) {
+      const hairColors = ['#282321', '#44352d', '#625044', '#292f32', '#806541'];
+      const hairColor = hairColors[idHash % hairColors.length];
+      const hairMaterial = standard(hairColor, 0.84, 0.02);
+      ownedMaterials.push(hairMaterial);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.112, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62), hairMaterial);
+      cap.position.set(0, 0.105, 0);
+      cap.scale.set(0.96 + (idHash % 3) * 0.035, 1, 0.95 + (idHash % 2) * 0.05);
+      cap.castShadow = true;
+      headBone[0].add(cap);
+    }
     return ownedMaterials;
   }
 
@@ -744,10 +746,11 @@ export function createSilentCoast3D(canvas) {
     return data.isPlayer ? 'player' : String(data.id || `actor-${actorSerial++}`);
   }
 
-  function shouldUseDetailedModel(data, state) {
+  function shouldUseDetailedModel(data, state, currentlyDetailed = false) {
     if (data.isPlayer || data.target) return true;
     const focus = state.camera || state.player || { x: 1080, y: 610 };
-    return Math.hypot((data.x || 0) - focus.x, (data.y || 0) - focus.y) < 260;
+    const threshold = currentlyDetailed ? 760 : 700;
+    return Math.hypot((data.x || 0) - focus.x, (data.y || 0) - focus.y) < threshold;
   }
 
   function createActor(data) {
@@ -837,6 +840,43 @@ export function createSilentCoast3D(canvas) {
     actor.action = name;
   }
 
+  function createCrowdVisuals(template, renderIndices) {
+    const indicesKey = renderIndices.join(',');
+    if (crowdVisuals.length && indicesKey === crowdVisualIndicesKey) return;
+    for (const visual of crowdVisuals) {
+      crowdGroup.remove(visual.root);
+      visual.mixer.stopAllAction();
+      visual.ownedMaterials.forEach((material) => material.dispose());
+    }
+    crowdVisuals.length = 0;
+    crowdVisualIndicesKey = indicesKey;
+    for (const index of renderIndices) {
+      const root = new THREE.Group();
+      const facing = new THREE.Group();
+      root.add(facing);
+      const model = SkeletonUtils.clone(template.scene);
+      const bounds = new THREE.Box3().setFromObject(model);
+      const sourceHeight = Math.max(0.1, bounds.max.y - bounds.min.y);
+      const modelScale = ACTOR_HEIGHT / sourceHeight;
+      const heightVariation = 0.92 + ((index * 13) % 7) * 0.025;
+      model.scale.set(modelScale * 0.78, modelScale * heightVariation, modelScale * 0.78);
+      model.position.set(0, -bounds.min.y * modelScale * heightVariation, 0);
+      facing.add(model);
+      const ownedMaterials = configureMaterials(model, { id: `crowd-${index}`, role: 'guest' });
+      const mixer = new THREE.AnimationMixer(model);
+      const actions = {};
+      for (const clip of template.animations) {
+        const name = clip.name.toLowerCase();
+        const key = name.includes('idle') ? 'idle' : name.includes('run') ? 'run' : name.includes('walk') ? 'walk' : name;
+        if (!actions[key]) actions[key] = mixer.clipAction(clip);
+      }
+      const visual = { index, root, facing, model, mixer, actions, action: '', ownedMaterials };
+      crowdGroup.add(root);
+      playAction(visual, 'idle', 0);
+      crowdVisuals.push(visual);
+    }
+  }
+
   function loadModels() {
     return modelLoader.loadAsync('./assets/characters/suited.glb').then((gltf) => {
       templates.set('suited', gltf);
@@ -875,10 +915,11 @@ export function createSilentCoast3D(canvas) {
           actor.gearHolder.add(actor.gear);
         }
       }
-      const detailed = templates.has('suited') && shouldUseDetailedModel(actor.data, state);
+      const detailed = templates.has('suited') && shouldUseDetailedModel(actor.data, state, Boolean(actor.model));
       if (detailed && !actor.model) upgradeActor(actor, templates.get('suited'));
       else if (!detailed && actor.model) downgradeActor(actor);
       actor.root.visible = !data.hidden;
+      actor.root.scale.setScalar(0.94 + (idHashFrom(id) % 7) * 0.02);
       actor.root.position.set(SCALE(data.x || 0), 0, SCALE(data.y || 0));
       actor.pose.rotation.z = data.dead || data.down ? Math.PI / 2 : 0;
       actor.pose.scale.y = data.crouched && !data.dead && !data.down ? 0.78 : 1;
@@ -892,7 +933,12 @@ export function createSilentCoast3D(canvas) {
       actor.facing.rotation.y = Math.PI / 2 - face;
       if (actor.mixer && !data.dead && !data.down) {
         const action = actor.moved ? (speedPixels > 145 ? 'run' : 'walk') : 'idle';
+        const actionChanged = actor.action !== action;
         playAction(actor, action, 0.2);
+        if (actionChanged && actor.actions[action]) {
+          const clipDuration = actor.actions[action].getClip().duration;
+          actor.actions[action].time = clipDuration > 0 ? (idHashFrom(id) * 0.037) % clipDuration : 0;
+        }
         const referenceSpeed = action === 'run' ? 205 : 128;
         actor.mixer.timeScale = clamp(speedPixels / referenceSpeed, 0.32, 1.22);
         actor.mixer.update(dt);
@@ -931,79 +977,57 @@ export function createSilentCoast3D(canvas) {
 
   function updateCrowd(state, dt) {
     const crowd = state.crowd;
-    if (!crowd) {
+    if (!crowd || !templates.has('suited') || !crowd.renderIndices?.length) {
       crowdGroup.visible = false;
-      crowdBody.count = crowdHeads.count = crowdArms.count = crowdLegs.count = 0;
+      crowdShadowGroup.visible = false;
+      crowdShadowMesh.count = 0;
+      crowdVisuals.forEach((visual) => { visual.root.visible = false; });
       return;
     }
+    createCrowdVisuals(templates.get('suited'), crowd.renderIndices);
     crowdGroup.visible = true;
-    crowdAccumulator += dt;
-    if (crowdAccumulator < 0.12 && crowdBody.count) return;
-    crowdAccumulator = 0;
+    crowdShadowGroup.visible = true;
     let renderIndex = 0;
-    for (let i = 0; i < 1120; i += CROWD_RENDER_STRIDE) {
-      if (crowd.promoted?.[i]) continue;
-      const x = SCALE(crowd.x[i] || 0);
-      const z = SCALE(crowd.y[i] || 0);
-      const dx = (crowd.destinationX?.[i] || crowd.x[i]) - crowd.x[i];
-      const dz = (crowd.destinationY?.[i] || crowd.y[i]) - crowd.y[i];
-      const facing = Math.atan2(dz, dx);
-      const phase = crowd.phase?.[i] || 0;
-      const bob = Math.sin(phase * 2.1) * 0.012;
-      const scale = 0.84 + ((i * 37) % 9) * 0.028;
-      const variant = (crowd.palette?.[i] || 0) % 4;
-      const yaw = Math.PI / 2 - facing;
-      const gait = Math.sin(phase * 2.1);
-      dummy.position.set(x, 0.98 + bob, z);
-      dummy.rotation.set(0, yaw, 0);
-      dummy.scale.set(1, scale, 0.92);
-      dummy.updateMatrix();
-      crowdBody.setMatrixAt(renderIndex, dummy.matrix);
-      dummy.position.set(x, 1.52 + Math.sin(phase * 2) * 0.008, z);
-      dummy.rotation.set(0, yaw, 0);
-      dummy.scale.setScalar(scale);
-      dummy.updateMatrix();
-      crowdHeads.setMatrixAt(renderIndex, dummy.matrix);
-      crowdBody.setColorAt(renderIndex, crowdClothingColors[variant]);
-      crowdHeads.setColorAt(renderIndex, crowdSkinColors[(variant + i % 3) % 4]);
-      for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
-        const side = sideIndex === 0 ? -1 : 1;
-        const armSwing = gait * 0.42 * side;
-        const legSwing = -gait * 0.58 * side;
-        const armIndex = renderIndex * 2 + sideIndex;
-        const armOffset = side * 0.14;
-        dummy.position.set(x + armOffset * Math.cos(yaw), 1.08 + bob, z - armOffset * Math.sin(yaw));
-        dummy.rotation.set(armSwing, yaw, 0, 'YXZ');
-        dummy.scale.setScalar(scale);
-        dummy.updateMatrix();
-        crowdArms.setMatrixAt(armIndex, dummy.matrix);
-        const legOffset = side * 0.055;
-        dummy.position.set(x + legOffset * Math.cos(yaw), 0.31 + bob, z - legOffset * Math.sin(yaw));
-        dummy.rotation.set(legSwing, yaw, 0, 'YXZ');
-        dummy.scale.setScalar(scale);
-        dummy.updateMatrix();
-        crowdLegs.setMatrixAt(armIndex, dummy.matrix);
-        crowdArms.setColorAt(armIndex, crowdClothingColors[variant]);
-        crowdLegs.setColorAt(armIndex, crowdPantsColors[variant]);
+    for (const visual of crowdVisuals) {
+      const index = visual.index;
+      if (crowd.promoted?.[index]) {
+        visual.root.visible = false;
+        continue;
       }
+      const x = crowd.x[index];
+      const z = crowd.y[index];
+      const dx = crowd.destinationX[index] - x;
+      const dz = crowd.destinationY[index] - z;
+      const isMoving = Math.hypot(dx, dz) > 5;
+      const action = isMoving ? 'walk' : 'idle';
+      visual.root.visible = true;
+      visual.root.position.set(SCALE(x), 0, SCALE(z));
+      visual.facing.rotation.y = Math.PI / 2 - Math.atan2(dz, dx);
+      const actionChanged = visual.action !== action;
+      playAction(visual, action, 0.22);
+      if (actionChanged && visual.actions[action]) {
+        const clipDuration = visual.actions[action].getClip().duration;
+        visual.actions[action].time = clipDuration > 0 ? (index * 0.173) % clipDuration : 0;
+      }
+      visual.mixer.timeScale = isMoving ? clamp(crowd.speed[index] / 72, 0.68, 1.28) : 1;
+      visual.mixer.update(dt);
+      dummy.position.set(SCALE(x), 0.009, SCALE(z));
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.scale.set(0.96, 0.58, 1);
+      dummy.updateMatrix();
+      crowdShadowMesh.setMatrixAt(renderIndex, dummy.matrix);
       renderIndex += 1;
     }
-    crowdBody.count = renderIndex;
-    crowdHeads.count = renderIndex;
-    crowdArms.count = renderIndex * 2;
-    crowdLegs.count = renderIndex * 2;
-    for (const mesh of [crowdBody, crowdHeads, crowdArms, crowdLegs]) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
+    crowdShadowMesh.count = renderIndex;
+    crowdShadowMesh.instanceMatrix.needsUpdate = true;
   }
 
   function updateCamera(state, width, height) {
     const focus = state.camera || state.player || { x: 1080, y: 610 };
     const zoom = clamp(state.view?.zoom || 1, 0.6, 1.2);
-    const targetDistance = 11.8 / zoom / cameraZoom;
+    const targetDistance = 10.0 / zoom / cameraZoom;
     cameraDistance += (targetDistance - cameraDistance) * 0.08;
-    const pitch = state.mode === 'menu' ? 0.76 : 0.79;
+    const pitch = state.mode === 'menu' ? 0.76 : 0.71;
     const target = point(focus.x, focus.y, state.mode === 'menu' ? 0.55 : 0.68);
     const horizontal = Math.cos(pitch) * cameraDistance;
     const vertical = Math.sin(pitch) * cameraDistance;
@@ -1255,7 +1279,7 @@ export function createSilentCoast3D(canvas) {
       actors: actors.size,
       detailedActors: [...actors.values()].filter((actor) => Boolean(actor.model)).length,
       playerPosition: (() => { const data = [...actors.values()].find((actor) => actor.isPlayer)?.data; return data ? [data.x, data.y] : null; })(),
-      crowdInstances: crowdBody.count,
+      crowdInstances: crowdVisuals.filter((visual) => visual.root.visible).length,
       environmentMeshes: environment.children.length,
       propRenderObjects: staticProps.children.length
     };

@@ -1,6 +1,6 @@
 # The Silent Coast — Field Operations
 
-A browser-playable **3D** stealth-game prototype inspired by the social-stealth genre. The old 2D canvas presentation has been replaced by a Three.js WebGL scene with animated, license-verified human models, role-specific wardrobe styling, a navigable 3D venue, and a lightweight instanced crowd. Three original contracts share one reactive sandbox.
+A browser-playable **3D** stealth-game prototype inspired by the social-stealth genre. The old 2D canvas presentation has been replaced by a Three.js WebGL scene with animated, license-verified human models, role-specific wardrobe styling, a navigable 3D venue, and a distributed animated crowd. Three original contracts share one reactive sandbox.
 
 ## Run
 
@@ -17,7 +17,7 @@ Then visit `http://localhost:8000`. The Three.js runtime, GLTF loader, character
 Choose a contract, review its briefing, and deploy. The 3D build includes:
 
 - A perspective, orbitable 3D view of the shared venue, with contract-specific lighting, surfaces, walls, water, furniture, and interactable environmental props.
-- An animated CC0 MakeHuman-derived suited character for the player and individual NPCs. Security, facilities technicians, event staff, executives, and guests receive distinct suit colors, badges, lanyards, safety equipment, or security gear; the low-detail background crowd uses instanced 3D figures to keep 1,120 ambient agents practical.
+- Animated CC0 MakeHuman-derived suited characters for the player and individual NPCs, with role-specific suit colors, badges, lanyards, safety equipment, or security gear. Twelve animated GLB crowd representatives are stratified across the venue and use the same collision-safe 1,120-agent simulation that powers ambient movement and reactions.
 - Smooth idle/walk/run cross-fades with stride speed matched to movement, a lowered crouch silhouette, animated articulated crowd figures, target/enforcer markers, 3D vision cones, active searches, sound-wave rings, and visible weapon fire.
 - Guard, civilian, and target behavior trees with separate knowledge and response rules; nearby members of the 1,120-agent crowd are promoted to individual AI during disturbances.
 - A* navigation, patrol schedules, scripted target opportunities, target evacuation, safe rooms, protective guard perimeters, and role-specific area access.
@@ -25,7 +25,7 @@ Choose a contract, review its briefing, and deploy. The 3D build includes:
 - Body dragging and concealment, exposed-body discovery, civilian reports, guard vital checks, drawn weapons, and local searches/lockdowns.
 - Sound propagation and investigation, environmental disruptions and repair tasks, health, extraction, campaign progress, pause, and a tactical minimap.
 
-The close-up 3D cast shares one suited base model with role-specific material and accessory variations; it does not yet include a different high-detail source mesh for every gender, face, or uniform. The crowd uses simpler 3D figures for performance.
+The detailed cast and the 12 visible crowd representatives share one suited CC0 base model, with role-specific material and accessory variations rather than a unique high-detail mesh for every gender, face, or uniform.
 
 ### Controls
 

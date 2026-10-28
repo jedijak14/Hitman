@@ -33,12 +33,12 @@
       sabotageName: 'the prototype thermal core',
       targetOne: { name: 'NORA VALE', role: 'DIRECTOR, KRONSTADT R&D', callSign: 'Nora Vale' },
       targetTwo: { name: 'MAREK ROOK', role: 'SUMMIT SECURITY DIRECTOR', callSign: 'Marek Rook' },
-      targetOneStart: { x: 1005, y: 325 },
+      targetOneStart: { x: 960, y: 380 },
       targetTwoStart: { x: 1400, y: 560 },
       primaryRoute: [
-        { x: 1015, y: 335, wait: 7 }, { x: 1150, y: 335, wait: 8 },
-        { x: 1150, y: 510, wait: 5 }, { x: 1035, y: 515, wait: 8 },
-        { x: 1090, y: 405, wait: 7 }
+        { x: 960, y: 380, wait: 7 }, { x: 1260, y: 375, wait: 8 },
+        { x: 1260, y: 500, wait: 5 }, { x: 1105, y: 490, wait: 8 },
+        { x: 960, y: 380, wait: 7 }
       ]
     },
     {
@@ -58,12 +58,12 @@
       sabotageName: 'the cellar wine press',
       targetOne: { name: 'ELENA CARUSO', role: 'ESTATE OWNER & COLLECTOR', callSign: 'Elena Caruso' },
       targetTwo: { name: 'MATTEO VALLI', role: 'AUCTION BROKER', callSign: 'Matteo Valli' },
-      targetOneStart: { x: 1015, y: 335 },
+      targetOneStart: { x: 960, y: 380 },
       targetTwoStart: { x: 1400, y: 560 },
       primaryRoute: [
-        { x: 1000, y: 350, wait: 8 }, { x: 1150, y: 350, wait: 7 },
-        { x: 1160, y: 510, wait: 6 }, { x: 1040, y: 520, wait: 8 },
-        { x: 1085, y: 405, wait: 7 }
+        { x: 970, y: 380, wait: 8 }, { x: 1260, y: 375, wait: 7 },
+        { x: 1260, y: 500, wait: 6 }, { x: 1105, y: 490, wait: 8 },
+        { x: 960, y: 380, wait: 7 }
       ]
     },
     {
@@ -83,12 +83,12 @@
       sabotageName: 'the stage-control rig',
       targetOne: { name: 'NIKOLAI VARGA', role: 'PRIVATE SECURITY BROKER', callSign: 'Nikolai Varga' },
       targetTwo: { name: 'JUNO PARK', role: 'SIGNAL INTELLIGENCE LEAD', callSign: 'Juno Park' },
-      targetOneStart: { x: 1015, y: 335 },
+      targetOneStart: { x: 960, y: 380 },
       targetTwoStart: { x: 1400, y: 560 },
       primaryRoute: [
-        { x: 1000, y: 340, wait: 7 }, { x: 1150, y: 340, wait: 7 },
-        { x: 1150, y: 510, wait: 6 }, { x: 1035, y: 515, wait: 7 },
-        { x: 1085, y: 405, wait: 9 }
+        { x: 960, y: 380, wait: 7 }, { x: 1260, y: 375, wait: 7 },
+        { x: 1260, y: 500, wait: 6 }, { x: 1105, y: 490, wait: 7 },
+        { x: 960, y: 380, wait: 9 }
       ]
     }
   ];
@@ -132,6 +132,20 @@
     { x: 1312, y: 435, w: 218, h: 16 },
     { x: 1312, y: 463, w: 218, h: 14 }
   ];
+
+  // Collision footprints for furniture and display fixtures rendered in game3d.js.
+  // Keeping actors off these surfaces prevents the figures from walking through tables, consoles, or loungers.
+  const SOLID_FIXTURES = [
+    { x: 855, y: 255, w: 90, h: 90 }, { x: 1000, y: 255, w: 90, h: 90 },
+    { x: 855, y: 520, w: 90, h: 90 }, { x: 1000, y: 520, w: 90, h: 90 },
+    { x: 1140, y: 555, w: 90, h: 90 }, { x: 1190, y: 255, w: 90, h: 90 },
+    { x: 1000, y: 398, w: 244, h: 28 },
+    { x: 787, y: 660, w: 150, h: 40 },
+    { x: 1372, y: 238, w: 100, h: 34 }, { x: 1350, y: 285, w: 135, h: 40 },
+    { x: 1625, y: 586, w: 110, h: 48 }, { x: 1815, y: 586, w: 110, h: 48 },
+    { x: 1635, y: 796, w: 110, h: 48 }, { x: 1835, y: 796, w: 110, h: 48 }
+  ];
+  const COLLIDERS = [...WALLS, ...SOLID_FIXTURES];
 
   const PROPS = [
     { id: 'staff-locker', type: 'outfit', x: 350, y: 885, role: 'event-staff', label: 'SERVICE LOCKER', prompt: 'Take event staff disguise' },
@@ -411,8 +425,8 @@
     });
     const cast = [
       primary, secondary,
-      makeNpc({ id: 'guard-west', name: 'Security', role: 'security', x: 830, y: 300, route: [{ x: 830, y: 300, wait: 2 }, { x: 930, y: 300, wait: 2 }, { x: 930, y: 430, wait: 2 }, { x: 830, y: 430, wait: 2 }], speed: 37 }),
-      makeNpc({ id: 'guard-hall', name: 'Security', role: 'security', enforcer: true, x: 1190, y: 670, route: [{ x: 1190, y: 670, wait: 2 }, { x: 1240, y: 560, wait: 3 }, { x: 1190, y: 460, wait: 2 }], speed: 39 }),
+      makeNpc({ id: 'guard-west', name: 'Security', role: 'security', x: 830, y: 300, route: [{ x: 830, y: 300, wait: 2 }, { x: 830, y: 440, wait: 2 }, { x: 980, y: 440, wait: 2 }, { x: 980, y: 235, wait: 2 }, { x: 830, y: 235, wait: 2 }], speed: 37 }),
+      makeNpc({ id: 'guard-hall', name: 'Security', role: 'security', enforcer: true, x: 1190, y: 670, route: [{ x: 1190, y: 670, wait: 2 }, { x: 1260, y: 540, wait: 3 }, { x: 1190, y: 460, wait: 2 }], speed: 39 }),
       makeNpc({ id: 'guard-dock', name: 'Security', role: 'security', x: 975, y: 875, route: [{ x: 845, y: 875, wait: 2 }, { x: 1080, y: 875, wait: 2 }], speed: 42 }),
       makeNpc({ id: 'guard-archive', name: 'Security', role: 'security', enforcer: true, x: 1415, y: 365, route: [{ x: 1415, y: 365, wait: 3 }, { x: 1490, y: 365, wait: 3 }, { x: 1490, y: 235, wait: 3 }], speed: 34 }),
       makeNpc({ id: 'tech-east', name: 'Facilities', role: 'technician', x: 1380, y: 720, route: [{ x: 1380, y: 720, wait: 3 }, { x: 1460, y: 720, wait: 3 }, { x: 1460, y: 520, wait: 3 }], speed: 27 }),
@@ -420,14 +434,14 @@
       makeNpc({ id: 'staff-west', name: 'Catering', role: 'event-staff', x: 700, y: 745, route: [{ x: 700, y: 745, wait: 3 }, { x: 590, y: 745, wait: 3 }], speed: 25 }),
       makeNpc({ id: 'staff-hall', name: 'Catering', role: 'event-staff', x: 1035, y: 650, route: [{ x: 1035, y: 650, wait: 3 }, { x: 1120, y: 650, wait: 2 }, { x: 1120, y: 575, wait: 3 }], speed: 24 }),
       makeNpc({ id: 'guest-patio', name: 'Guest', role: 'guest', x: 1650, y: 700, route: [{ x: 1650, y: 700, wait: 4 }, { x: 1780, y: 700, wait: 5 }, { x: 1760, y: 820, wait: 4 }], speed: 22, visionRange: 140, hearing: 120 }),
-      makeNpc({ id: 'guest-hall', name: 'Guest', role: 'guest', x: 1110, y: 750, route: [{ x: 1110, y: 750, wait: 4 }, { x: 1210, y: 750, wait: 4 }, { x: 1210, y: 600, wait: 4 }], speed: 23, visionRange: 145 }),
+      makeNpc({ id: 'guest-hall', name: 'Guest', role: 'guest', x: 1110, y: 750, route: [{ x: 1110, y: 750, wait: 4 }, { x: 1260, y: 750, wait: 4 }, { x: 1260, y: 680, wait: 4 }], speed: 23, visionRange: 145 }),
       makeNpc({ id: 'guest-plaza', name: 'Guest', role: 'guest', x: 260, y: 585, route: [{ x: 260, y: 585, wait: 4 }, { x: 380, y: 590, wait: 4 }, { x: 370, y: 680, wait: 4 }], speed: 20, visionRange: 135, hearing: 105 }),
       makeNpc({ id: 'guest-walk', name: 'Guest', role: 'guest', x: 1585, y: 940, route: [{ x: 1585, y: 940, wait: 4 }, { x: 1780, y: 940, wait: 5 }, { x: 1720, y: 1070, wait: 3 }], speed: 21, visionRange: 140 })
     ];
     return cast;
   }
 
-  function randomWalkableCrowdPoint(zone, originX = null, originY = null, spread = 48) {
+  function randomWalkableCrowdPoint(zone, originX = null, originY = null, spread = 72) {
     const minX = zone.x + CROWD_COLLISION_RADIUS + 2;
     const maxX = zone.x + zone.w - CROWD_COLLISION_RADIUS - 2;
     const minY = zone.y + CROWD_COLLISION_RADIUS + 2;
@@ -449,8 +463,8 @@
     const population = {
       x: new Float32Array(CROWD_COUNT), y: new Float32Array(CROWD_COUNT),
       destinationX: new Float32Array(CROWD_COUNT), destinationY: new Float32Array(CROWD_COUNT),
-      speed: new Float32Array(CROWD_COUNT), phase: new Float32Array(CROWD_COUNT),
-      zone: new Uint8Array(CROWD_COUNT), palette: new Uint8Array(CROWD_COUNT),
+      speed: new Float32Array(CROWD_COUNT),
+      zone: new Uint8Array(CROWD_COUNT),
       promoted: new Uint8Array(CROWD_COUNT)
     };
     for (let i = 0; i < CROWD_COUNT; i += 1) {
@@ -462,15 +476,35 @@
       }
       const zone = CROWD_ZONES[zoneIndex];
       const spawn = randomWalkableCrowdPoint(zone);
-      const destination = randomWalkableCrowdPoint(zone, spawn.x, spawn.y, 34);
+      const destination = randomWalkableCrowdPoint(zone, spawn.x, spawn.y, 80);
       population.x[i] = spawn.x;
       population.y[i] = spawn.y;
       population.zone[i] = zoneIndex;
-      population.palette[i] = i % 4;
-      population.speed[i] = rand(5, 13);
-      population.phase[i] = rand(0, TAU);
+      population.speed[i] = rand(55, 85);
       population.destinationX[i] = destination.x;
       population.destinationY[i] = destination.y;
+    }
+    const renderQuota = [4, 2, 2, 4];
+    population.renderIndices = [];
+    for (let zoneIndex = 0; zoneIndex < CROWD_ZONES.length; zoneIndex += 1) {
+      const candidates = [];
+      for (let index = 0; index < CROWD_COUNT; index += 1) {
+        if (population.zone[index] === zoneIndex) candidates.push(index);
+      }
+      for (let count = 0; count < renderQuota[zoneIndex] && candidates.length; count += 1) {
+        let bestCandidate = 0;
+        let bestDistance = -1;
+        for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+          const index = candidates[candidateIndex];
+          let nearest = Infinity;
+          for (const chosen of population.renderIndices) {
+            nearest = Math.min(nearest, Math.hypot(population.x[index] - population.x[chosen], population.y[index] - population.y[chosen]));
+          }
+          const score = Number.isFinite(nearest) ? nearest : Math.random();
+          if (score > bestDistance) { bestDistance = score; bestCandidate = candidateIndex; }
+        }
+        population.renderIndices.push(candidates.splice(bestCandidate, 1)[0]);
+      }
     }
     crowdTick = 0;
     return population;
@@ -599,7 +633,6 @@
         crowd.destinationX[i] = destination.x;
         crowd.destinationY[i] = destination.y;
       }
-      crowd.phase[i] += step * (crowd.speed[i] / 7);
       if (Math.random() < step * .16) {
         const destination = randomWalkableCrowdPoint(zone, crowd.x[i], crowd.y[i]);
         crowd.destinationX[i] = destination.x;
@@ -843,7 +876,7 @@
   }
   function collidesWall(x, y, radius) {
     if (x < radius || y < radius || x > WORLD.width - radius || y > WORLD.height - radius) return true;
-    for (const wall of WALLS) {
+    for (const wall of COLLIDERS) {
       if (x + radius < wall.x || x - radius > wall.x + wall.w || y + radius < wall.y || y - radius > wall.y + wall.h) continue;
       if (collidesCircleRect(x, y, radius, wall)) return true;
     }
@@ -852,7 +885,7 @@
   function lineBlocked(x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
-    for (const wall of WALLS) {
+    for (const wall of COLLIDERS) {
       let tMin = 0;
       let tMax = 1;
       const p = [-dx, dx, -dy, dy];
@@ -1919,7 +1952,7 @@
     if (npc.wait > 0) { npc.wait -= dt; return; }
     if (!npc.route.length) return;
     const point = npc.route[npc.routeIndex % npc.route.length];
-    const arrived = moveNPCTo(npc, point.x, point.y, npc.speed, dt);
+    const arrived = navigateNPCTo(npc, point, npc.speed, dt);
     if ((arrived || distance(npc, point) < 8) && !collidesWall(point.x, point.y, npc.radius)) {
       npc.x = point.x; npc.y = point.y;
       npc.wait = point.wait || 3;
@@ -2207,7 +2240,7 @@
         crowd.promoted[index] = 0;
         crowd.x[index] = npc.x; crowd.y[index] = npc.y;
         const zone = CROWD_ZONES[crowd.zone[index]];
-        const destination = randomWalkableCrowdPoint(zone, npc.x, npc.y, 35);
+        const destination = randomWalkableCrowdPoint(zone, npc.x, npc.y, 72);
         crowd.destinationX[index] = destination.x;
         crowd.destinationY[index] = destination.y;
       }
