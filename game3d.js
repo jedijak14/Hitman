@@ -7,7 +7,7 @@ const UNIT = 0.01;
 const SCALE = (value) => value * UNIT;
 const SHADOW_GEOMETRY = new THREE.CircleGeometry(0.34, 18);
 const ACTOR_HEIGHT = 1.86;
-const CROWD_RENDER_STRIDE = 16;
+const CROWD_RENDER_STRIDE = 24;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const point = (x, y, height = 0) => new THREE.Vector3(SCALE(x), height, SCALE(y));
 
@@ -210,7 +210,7 @@ export function createSilentCoast3D(canvas) {
   let dragPointer = null;
   let disposed = false;
 
-  const crowdClothingColors = ['#a7b4b3', '#b7a99a', '#98b0a2', '#aea6b3'].map((color) => new THREE.Color(color));
+  const crowdClothingColors = ['#637b75', '#8f7863', '#4f6c60', '#756d7b'].map((color) => new THREE.Color(color));
   const crowdSkinColors = ['#d8b293', '#ead1b4', '#c69e7f', '#dfb69a'].map((color) => new THREE.Color(color));
   const crowdBodyGeometry = new THREE.CapsuleGeometry(0.08, 0.78, 2, 5);
   const crowdHeadGeometry = new THREE.SphereGeometry(0.065, 6, 4);
@@ -281,14 +281,15 @@ export function createSilentCoast3D(canvas) {
     const walls = state.walls || [];
     walls.forEach((wall, index) => {
       const outer = index < 5;
-      const h = outer ? 1.1 : 0.72;
+      // Cutaway walls stay below torso height so the venue remains readable without hiding people.
+      const h = outer ? 0.72 : 0.48;
       const material = outer ? wallMaterial : stoneMaterial;
       const box = makeBox(environment, SCALE(wall.x + wall.w / 2), SCALE(wall.y + wall.h / 2), SCALE(wall.w), SCALE(wall.h), h, palette.wall, h / 2, material);
       box.castShadow = false;
     });
     // Cap walls with a slim contrasting stone rail.
     walls.forEach((wall, index) => {
-      const h = index < 5 ? 1.1 : 0.72;
+      const h = index < 5 ? 0.72 : 0.48;
       makeBox(environment, SCALE(wall.x + wall.w / 2), SCALE(wall.y + wall.h / 2), SCALE(wall.w), SCALE(wall.h), 0.065, palette.trim, h + 0.032, trimMaterial);
     });
 
@@ -628,14 +629,14 @@ export function createSilentCoast3D(canvas) {
     const shirt = standard('#d4d0c4', 0.88);
     const skin = standard('#bd9678', 0.92);
     const shoe = standard('#272c2d', 0.82);
-    addMesh(root, new THREE.CapsuleGeometry(0.22, 0.55, 4, 8), suit, 0, 0.83, 0);
-    addMesh(root, new THREE.SphereGeometry(0.16, 12, 10), skin, 0, 1.49, 0);
+    addMesh(root, new THREE.CapsuleGeometry(0.19, 0.55, 4, 8), suit, 0, 0.83, 0);
+    addMesh(root, new THREE.SphereGeometry(0.15, 12, 10), skin, 0, 1.49, 0);
     for (const side of [-1, 1]) {
-      const arm = addMesh(root, new THREE.CapsuleGeometry(0.075, 0.45, 3, 6), suit, side * 0.26, 0.99, 0);
-      arm.rotation.z = side * 0.12;
-      const leg = addMesh(root, new THREE.CapsuleGeometry(0.082, 0.4, 3, 6), suit, side * 0.105, 0.32, 0);
+      const arm = addMesh(root, new THREE.CapsuleGeometry(0.055, 0.42, 3, 6), suit, side * 0.22, 0.99, 0);
+      arm.rotation.z = side * 0.1;
+      const leg = addMesh(root, new THREE.CapsuleGeometry(0.07, 0.4, 3, 6), suit, side * 0.095, 0.32, 0);
       leg.rotation.z = side * -0.03;
-      addMesh(root, new THREE.BoxGeometry(0.16, 0.09, 0.28), shoe, side * 0.105, 0.075, 0.065);
+      addMesh(root, new THREE.BoxGeometry(0.14, 0.085, 0.26), shoe, side * 0.095, 0.075, 0.065);
     }
     addMesh(root, new THREE.BoxGeometry(0.08, 0.32, 0.025), standard('#772f38', 0.82), 0, 1.06, 0.22);
     if (role === 'technician') {
@@ -953,12 +954,12 @@ export function createSilentCoast3D(canvas) {
       const variant = (crowd.palette?.[i] || 0) % 4;
       const yaw = Math.PI / 2 - facing;
       const gait = Math.sin(phase * 2.1);
-      dummy.position.set(x, 0.5 + bob, z);
+      dummy.position.set(x, 0.98 + bob, z);
       dummy.rotation.set(0, yaw, 0);
       dummy.scale.set(1, scale, 0.92);
       dummy.updateMatrix();
       crowdBody.setMatrixAt(renderIndex, dummy.matrix);
-      dummy.position.set(x, 1.11 + Math.sin(phase * 2) * 0.008, z);
+      dummy.position.set(x, 1.52 + Math.sin(phase * 2) * 0.008, z);
       dummy.rotation.set(0, yaw, 0);
       dummy.scale.setScalar(scale);
       dummy.updateMatrix();
@@ -971,7 +972,7 @@ export function createSilentCoast3D(canvas) {
         const legSwing = -gait * 0.58 * side;
         const armIndex = renderIndex * 2 + sideIndex;
         const armOffset = side * 0.14;
-        dummy.position.set(x + armOffset * Math.cos(yaw), 0.76 + bob, z - armOffset * Math.sin(yaw));
+        dummy.position.set(x + armOffset * Math.cos(yaw), 1.08 + bob, z - armOffset * Math.sin(yaw));
         dummy.rotation.set(armSwing, yaw, 0, 'YXZ');
         dummy.scale.setScalar(scale);
         dummy.updateMatrix();

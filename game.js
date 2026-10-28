@@ -169,7 +169,8 @@
     { id: 'service-vault', x: 645, y: 754 },
     { id: 'west-office', x: 700, y: 245 }
   ];
-  const NAV_CELL = 32;
+  const NAV_CELL = 24;
+  const CROWD_COLLISION_RADIUS = 14;
   const BT_STATUS = Object.freeze({ FAILURE: 0, SUCCESS: 1, RUNNING: 2 });
 
   let view = { width: 0, height: 0, dpr: 1, zoom: 1 };
@@ -349,7 +350,7 @@
 
   function makePlayer(x, y) {
     return {
-      x, y, radius: 11, faceX: 1, faceY: 0, speed: 128, walkCycle: 0,
+      x, y, radius: 15, faceX: 1, faceY: 0, speed: 128, walkCycle: 0,
       disguise: 'guest', crouched: false, blending: false, dragging: null,
       selectedItem: 'wire', ammo: 8, coins: 3, poison: false, weaponVisibleTimer: 0,
       footsteps: 0, dragSoundTimer: 0, health: 100, wasMoving: false
@@ -371,7 +372,7 @@
         : { ...sharedKnowledge, witnessReports: 0, panicPoint: null, reportsSent: 0, familiarGuards: new Set() };
     return {
       id: data.id, name: data.name || '', title: data.title || '', role, category,
-      x: data.x, y: data.y, radius: data.radius || (data.promotedFromCrowd ? 4.5 : 10), color: roleColor(role),
+      x: data.x, y: data.y, radius: Number.isFinite(data.radius) ? data.radius : 14, color: roleColor(role),
       target: Boolean(data.target), targetKey: data.targetKey || '', route: data.route || [],
       routeIndex: 0, wait: data.wait || rand(0.4, 1.5), speed: data.speed || 34,
       facing: data.facing || 0, mode: 'patrol', intent: 'patrol', behaviorLabel: 'Resume patrol',
@@ -426,6 +427,24 @@
     return cast;
   }
 
+  function randomWalkableCrowdPoint(zone, originX = null, originY = null, spread = 48) {
+    const minX = zone.x + CROWD_COLLISION_RADIUS + 2;
+    const maxX = zone.x + zone.w - CROWD_COLLISION_RADIUS - 2;
+    const minY = zone.y + CROWD_COLLISION_RADIUS + 2;
+    const maxY = zone.y + zone.h - CROWD_COLLISION_RADIUS - 2;
+    for (let attempt = 0; attempt < 36; attempt += 1) {
+      const x = originX == null ? rand(minX, maxX) : clamp(originX + rand(-spread, spread), minX, maxX);
+      const y = originY == null ? rand(minY, maxY) : clamp(originY + rand(-spread, spread), minY, maxY);
+      if (!collidesWall(x, y, CROWD_COLLISION_RADIUS)) return { x, y };
+    }
+    for (let y = minY; y <= maxY; y += 12) {
+      for (let x = minX; x <= maxX; x += 12) {
+        if (!collidesWall(x, y, CROWD_COLLISION_RADIUS)) return { x, y };
+      }
+    }
+    return { x: clamp(zone.x + zone.w * 0.5, minX, maxX), y: clamp(zone.y + zone.h * 0.5, minY, maxY) };
+  }
+
   function createCrowd() {
     const population = {
       x: new Float32Array(CROWD_COUNT), y: new Float32Array(CROWD_COUNT),
@@ -442,21 +461,16 @@
         zoneIndex += 1;
       }
       const zone = CROWD_ZONES[zoneIndex];
-      let x = zone.x + zone.w * .5;
-      let y = zone.y + zone.h * .5;
-      for (let attempt = 0; attempt < 18; attempt += 1) {
-        x = zone.x + rand(8, zone.w - 8);
-        y = zone.y + rand(8, zone.h - 8);
-        if (!collidesWall(x, y, 3)) break;
-      }
-      population.x[i] = x;
-      population.y[i] = y;
+      const spawn = randomWalkableCrowdPoint(zone);
+      const destination = randomWalkableCrowdPoint(zone, spawn.x, spawn.y, 34);
+      population.x[i] = spawn.x;
+      population.y[i] = spawn.y;
       population.zone[i] = zoneIndex;
       population.palette[i] = i % 4;
       population.speed[i] = rand(5, 13);
       population.phase[i] = rand(0, TAU);
-      population.destinationX[i] = clamp(x + rand(-34, 34), zone.x + 8, zone.x + zone.w - 8);
-      population.destinationY[i] = clamp(y + rand(-34, 34), zone.y + 8, zone.y + zone.h - 8);
+      population.destinationX[i] = destination.x;
+      population.destinationY[i] = destination.y;
     }
     crowdTick = 0;
     return population;
@@ -476,7 +490,9 @@
       x: clamp(point.x + dx * distanceAway, zone.x + 12, zone.x + zone.w - 12),
       y: clamp(point.y + dy * distanceAway, zone.y + 12, zone.y + zone.h - 12)
     };
-    if (collidesWall(goal.x, goal.y, 8)) goal = { x: zone.x + zone.w * .5, y: zone.y + zone.h * .5 };
+    if (collidesWall(goal.x, goal.y, CROWD_COLLISION_RADIUS)) {
+      goal = randomWalkableCrowdPoint(zone, point.x, point.y, distanceAway);
+    }
     return goal;
   }
 
@@ -499,7 +515,7 @@
       const npc = makeNpc({
         id: `crowd-${i}`, name: 'Guest', role: 'guest', category: 'civilian',
         x: crowd.x[i], y: crowd.y[i], speed: 44, hearing: 190, visionRange: 148,
-        radius: 5.5, promotedFromCrowd: true, crowdAgentIndex: i
+        radius: CROWD_COLLISION_RADIUS, promotedFromCrowd: true, crowdAgentIndex: i
       });
       npc.promotedAt = mission.elapsed;
       npc.lastKnownGroupZone = crowd.zone[i];
@@ -556,32 +572,38 @@
     if (!crowd || mode !== 'playing') return;
     crowdTick += dt;
     if (crowdTick < .1) return;
-    const step = Math.min(.3, crowdTick);
+    const step = Math.min(.15, crowdTick);
     crowdTick = 0;
     for (let i = 0; i < CROWD_COUNT; i += 1) {
       if (crowd.promoted[i]) continue;
       const zone = CROWD_ZONES[crowd.zone[i]];
-      let dx = crowd.destinationX[i] - crowd.x[i];
-      let dy = crowd.destinationY[i] - crowd.y[i];
-      let d = Math.hypot(dx, dy);
-      if (d < 4 || collidesWall(crowd.destinationX[i], crowd.destinationY[i], 3)) {
-        crowd.destinationX[i] = clamp(crowd.x[i] + rand(-42, 42), zone.x + 8, zone.x + zone.w - 8);
-        crowd.destinationY[i] = clamp(crowd.y[i] + rand(-42, 42), zone.y + 8, zone.y + zone.h - 8);
+      const dx = crowd.destinationX[i] - crowd.x[i];
+      const dy = crowd.destinationY[i] - crowd.y[i];
+      const distanceToGoal = Math.hypot(dx, dy);
+      if (distanceToGoal < 4 || collidesWall(crowd.destinationX[i], crowd.destinationY[i], CROWD_COLLISION_RADIUS)) {
+        const destination = randomWalkableCrowdPoint(zone, crowd.x[i], crowd.y[i]);
+        crowd.destinationX[i] = destination.x;
+        crowd.destinationY[i] = destination.y;
         continue;
       }
-      const amount = Math.min(d, crowd.speed[i] * step);
-      crowd.x[i] += (dx / d) * amount;
-      crowd.y[i] += (dy / d) * amount;
-      if (collidesWall(crowd.x[i], crowd.y[i], 3)) {
-        crowd.x[i] -= (dx / d) * amount;
-        crowd.y[i] -= (dy / d) * amount;
-        crowd.destinationX[i] = clamp(crowd.x[i] + rand(-48, 48), zone.x + 8, zone.x + zone.w - 8);
-        crowd.destinationY[i] = clamp(crowd.y[i] + rand(-48, 48), zone.y + 8, zone.y + zone.h - 8);
+      const amount = Math.min(distanceToGoal, crowd.speed[i] * step);
+      const nextX = crowd.x[i] + (dx / distanceToGoal) * amount;
+      const nextY = crowd.y[i] + (dy / distanceToGoal) * amount;
+      const beforeX = crowd.x[i];
+      const beforeY = crowd.y[i];
+      if (!collidesWall(nextX, crowd.y[i], CROWD_COLLISION_RADIUS)) crowd.x[i] = nextX;
+      if (!collidesWall(crowd.x[i], nextY, CROWD_COLLISION_RADIUS)) crowd.y[i] = nextY;
+      const moved = Math.hypot(crowd.x[i] - beforeX, crowd.y[i] - beforeY);
+      if (moved < amount * .12) {
+        const destination = randomWalkableCrowdPoint(zone, crowd.x[i], crowd.y[i]);
+        crowd.destinationX[i] = destination.x;
+        crowd.destinationY[i] = destination.y;
       }
       crowd.phase[i] += step * (crowd.speed[i] / 7);
       if (Math.random() < step * .16) {
-        crowd.destinationX[i] = clamp(crowd.x[i] + rand(-48, 48), zone.x + 8, zone.x + zone.w - 8);
-        crowd.destinationY[i] = clamp(crowd.y[i] + rand(-48, 48), zone.y + 8, zone.y + zone.h - 8);
+        const destination = randomWalkableCrowdPoint(zone, crowd.x[i], crowd.y[i]);
+        crowd.destinationX[i] = destination.x;
+        crowd.destinationY[i] = destination.y;
       }
     }
   }
@@ -851,10 +873,22 @@
     return false;
   }
   function moveActor(actor, dx, dy, radius = actor.radius) {
-    const nx = actor.x + dx;
-    if (!collidesWall(nx, actor.y, radius)) actor.x = nx;
-    const ny = actor.y + dy;
-    if (!collidesWall(actor.x, ny, radius)) actor.y = ny;
+    // Sweep in short increments so fast movement cannot step through thin walls.
+    const maxStep = Math.max(2, Math.min(8, radius * 0.5));
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / maxStep));
+    const stepX = dx / steps;
+    const stepY = dy / steps;
+    for (let i = 0; i < steps; i += 1) {
+      const nextX = actor.x + stepX;
+      if (!collidesWall(nextX, actor.y, radius)) actor.x = nextX;
+      const nextY = actor.y + stepY;
+      if (!collidesWall(actor.x, nextY, radius)) actor.y = nextY;
+    }
+  }
+  function dragBodyToPlayer(body) {
+    const targetX = player.x - player.faceX * bodyDragOffset;
+    const targetY = player.y - player.faceY * bodyDragOffset;
+    moveActor(body, targetX - body.x, targetY - body.y, body.radius);
   }
 
   class MinHeap {
@@ -905,7 +939,7 @@
     for (let row = 0; row < NAV_ROWS; row += 1) {
       for (let column = 0; column < NAV_COLS; column += 1) {
         const center = cellCenter(cellId(column, row));
-        navWalkable[cellId(column, row)] = collidesWall(center.x, center.y, 9) ? 0 : 1;
+        navWalkable[cellId(column, row)] = collidesWall(center.x, center.y, 14) ? 0 : 1;
       }
     }
     return navWalkable;
@@ -1378,8 +1412,7 @@
     if (player.dragging) {
       const body = npcs.find((npc) => npc.id === player.dragging);
       if (body) {
-        body.x = player.x - player.faceX * bodyDragOffset;
-        body.y = player.y - player.faceY * bodyDragOffset;
+        dragBodyToPlayer(body);
       }
       player.dragging = null;
       showToast('BODY DROPPED', 'Move it out of sight or hide it in a container.');
@@ -1887,7 +1920,7 @@
     if (!npc.route.length) return;
     const point = npc.route[npc.routeIndex % npc.route.length];
     const arrived = moveNPCTo(npc, point.x, point.y, npc.speed, dt);
-    if (arrived || distance(npc, point) < 8) {
+    if ((arrived || distance(npc, point) < 8) && !collidesWall(point.x, point.y, npc.radius)) {
       npc.x = point.x; npc.y = point.y;
       npc.wait = point.wait || 3;
       npc.routeIndex = (npc.routeIndex + 1) % npc.route.length;
@@ -2029,7 +2062,7 @@
         if (!npc.evacuationPoint) { npc.evacuating = false; break; }
         const arrived = navigateNPCTo(npc, npc.evacuationPoint, npc.speed + 28, dt);
         npc.mode = 'evacuate';
-        if (arrived || distance(npc, npc.evacuationPoint) < 24) {
+        if ((arrived || distance(npc, npc.evacuationPoint) < 24) && !collidesWall(npc.evacuationPoint.x, npc.evacuationPoint.y, npc.radius)) {
           npc.x = npc.evacuationPoint.x; npc.y = npc.evacuationPoint.y;
           npc.atSafeRoom = true;
           if (!npc.evacuationTimer) npc.evacuationTimer = mission.elapsed + 7;
@@ -2174,8 +2207,9 @@
         crowd.promoted[index] = 0;
         crowd.x[index] = npc.x; crowd.y[index] = npc.y;
         const zone = CROWD_ZONES[crowd.zone[index]];
-        crowd.destinationX[index] = clamp(npc.x + rand(-35, 35), zone.x + 8, zone.x + zone.w - 8);
-        crowd.destinationY[index] = clamp(npc.y + rand(-35, 35), zone.y + 8, zone.y + zone.h - 8);
+        const destination = randomWalkableCrowdPoint(zone, npc.x, npc.y, 35);
+        crowd.destinationX[index] = destination.x;
+        crowd.destinationY[index] = destination.y;
       }
       npcs.splice(i, 1);
     }
@@ -2331,8 +2365,7 @@
     if (player.dragging) {
       const body = npcs.find((npc) => npc.id === player.dragging);
       if (body) {
-        body.x = player.x - player.faceX * bodyDragOffset;
-        body.y = player.y - player.faceY * bodyDragOffset;
+        dragBodyToPlayer(body);
       }
     }
     if (player.blending && moving) player.blending = false;
