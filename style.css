@@ -72,14 +72,18 @@ button { font: inherit; color: inherit; }
 .target-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--gold); box-shadow: 0 0 9px rgba(215,189,130,.5); }
 
 .alert-chip { top: 96px; right: 34px; display: flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid rgba(225,233,220,.14); background: rgba(14,23,21,.64); backdrop-filter: blur(10px); }
-.alert-chip > span:nth-child(2) { display: grid; gap: 4px; }
+.alert-copy { display: grid; gap: 4px; min-width: 112px; }
 .alert-chip small { color: #8d9b91; font: 400 8px var(--mono); letter-spacing: .14em; }
 .alert-chip b { color: #d8e5d9; font: 500 10px var(--mono); letter-spacing: .1em; }
+.disguise-label strong { color: var(--gold); font-weight: 500; }
 .alert-ring { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid rgba(164,197,171,.55); border-radius: 50%; }
 .alert-ring i { width: 5px; height: 5px; border-radius: 50%; background: #a4c5ab; box-shadow: 0 0 8px rgba(164,197,171,.7); }
+.suspicion-track { display: block; width: 100%; height: 2px; overflow: hidden; background: rgba(220,232,218,.14); }
+.suspicion-track > i { display: block; width: 0; height: 100%; background: #a4c5ab; box-shadow: 0 0 6px rgba(164,197,171,.7); transition: width .12s linear, background .18s; }
 .alert-chip.is-alert .alert-ring { border-color: rgba(227,110,92,.76); }
 .alert-chip.is-alert .alert-ring i { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
 .alert-chip.is-alert b { color: #ffad99; }
+.alert-chip.is-alert .suspicion-track > i { background: var(--alert); box-shadow: 0 0 6px var(--alert); }
 
 .weapon-hud { right: 34px; bottom: 75px; width: 201px; padding: 13px 14px 11px; border: 1px solid rgba(227,228,212,.16); background: rgba(14,22,21,.72); backdrop-filter: blur(13px); }
 .weapon-name { display: flex; align-items: center; gap: 10px; }
@@ -91,6 +95,8 @@ button { font: inherit; color: inherit; }
 .ammo-readout b { font-size: 23px; font-weight: 400; letter-spacing: -.07em; }
 .ammo-readout span { color: #849188; font-size: 9px; }
 .ammo-label { margin-top: 9px; color: #89938b; font: 400 7px var(--mono); letter-spacing: .17em; text-align: right; }
+.weapon-hud.is-stowed .weapon-icon { color: #91a08f; border-color: rgba(145,160,143,.38); }
+.weapon-hud.is-stowed .weapon-name small { color: #9ba98f; }
 
 .reticle { position: absolute; z-index: 6; left: 50%; top: 50%; width: 32px; height: 32px; pointer-events: none; transform: translate(-50%,-50%); opacity: .84; transition: opacity .18s, transform .18s; }
 .reticle-dot { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: #f6ebcf; box-shadow: 0 0 5px rgba(244,224,173,.6); transform: translate(-50%,-50%); }
@@ -210,10 +216,10 @@ kbd { font-family: var(--mono); }
   .alert-chip { right: 9px; top: 65px; padding: 7px; gap: 6px; }
   .alert-chip small { font-size: 6px; }
   .alert-chip b { font-size: 8px; }
-  .weapon-hud { right: 9px; bottom: 52px; width: 158px; padding: 9px; }
+  .weapon-hud { right: 9px; bottom: 82px; width: 158px; padding: 9px; }
   .weapon-name b { font-size: 8px; }
   .ammo-readout b { font-size: 18px; }
-  .cross-controls { bottom: 16px; gap: 7px; font-size: 6px; }
+  .cross-controls { bottom: 40px; width: calc(100% - 18px); flex-wrap: wrap; justify-content: center; gap: 5px 7px; font-size: 6px; white-space: normal; }
   .cross-controls span { gap: 3px; }
   .cross-controls kbd { padding: 2px 3px; font-size: 6px; }
   .hud-footer { height: 32px; padding: 0 10px; font-size: 6px; gap: 6px; }

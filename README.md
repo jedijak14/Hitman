@@ -1,6 +1,6 @@
 # The Highline — Field Operations
 
-A browser-playable, **third-person 3D** stealth-action vertical slice set above a Miami grand prix. The camera follows behind the operative at shoulder height; it is not a top-down or map-following view. The player can move around an elevated roof, shoulder a scoped rifle, acquire the event director on a VIP balcony, then use the stairwell to leave.
+A browser-playable, **third-person 3D** social-stealth action slice set above a Miami grand prix. The camera follows behind the operative at shoulder height; it is not a top-down or map-following view. Read the roof guard's patrol, stow the rifle, borrow an event or security uniform, and choose when to take the long-range shot. Afterward, evade the search and leave by the rear stairwell or side maintenance lift.
 
 ## Run locally
 
@@ -16,16 +16,18 @@ Open `http://localhost:8000`. Three.js, fonts, the character runtime, and all 3D
 
 - **WASD / arrow keys** — move relative to the camera
 - **Shift** — sprint
-- **C** — crouch
-- **Hold right mouse** — aim through the scope; drag to adjust the view
+- **C** — crouch to reduce visibility
+- **Q** — silent takedown when close behind the rooftop guard
+- **E** — take a disguise, change at the crew locker, or use a nearby exit
+- **H** — hide a subdued guard
+- **X** — stow / draw the rifle
+- **Hold right mouse** — aim through the scope; guards notice a raised weapon
 - **Middle-mouse drag** — orbit the camera when not aiming
-- **Left mouse** — fire
+- **Left mouse** — fire; **R** reload
 - **Mouse wheel** — adjust the view / optic magnification
-- **R** — reload
-- **E** — use the service stairwell after the target is down
 - **Esc** — pause / resume
 
-The operation starts with the operative on an elevated service roof, facing the pit-lane balcony. The target moves slightly along the balcony. The rooftop contains a small movement boundary and collision volumes around its service equipment. Missed shots alert security; after the target is down, reach the green stairwell marker and interact to finish the contract.
+The rooftop guard patrols a loop. Entering his sightline builds suspicion faster if you sprint, stand, or carry the rifle; crouching and a disguise reduce exposure. Use the locker at the rear of the roof or subdue the guard from behind and take his uniform. Gunfire triggers a search. Once the event director is down, interact at either green exit marker to finish the contract.
 
 ## Implementation
 

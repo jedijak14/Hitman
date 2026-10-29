@@ -17,12 +17,16 @@ export class HighlineOperation {
     this.missionCard = document.querySelector('#missionCard');
     this.alertChip = document.querySelector('#alertChip');
     this.weaponHud = document.querySelector('#weaponHud');
+    this.weaponState = document.querySelector('#weaponState');
     this.controlsHint = document.querySelector('#controlsHint');
     this.hudFooter = document.querySelector('#hudFooter');
     this.reticle = document.querySelector('#reticle');
     this.scopeRange = document.querySelector('#scopeRange');
     this.interactionPrompt = document.querySelector('#interactionPrompt');
+    this.interactionKey = document.querySelector('#interactionKey');
     this.interactionLabel = document.querySelector('#interactionLabel');
+    this.suspicionFill = document.querySelector('#suspicionFill');
+    this.disguiseValue = document.querySelector('#disguiseValue');
     this.toast = document.querySelector('#toast');
     this.toastText = document.querySelector('#toastText');
     this.errorPanel = document.querySelector('#errorPanel');
@@ -38,6 +42,11 @@ export class HighlineOperation {
     this.velocityZ = 0;
     this.targetDown = false;
     this.alerted = false;
+    this.suspicion = 0;
+    this.disguised = false;
+    this.disguiseType = 'none';
+    this.weaponDrawn = true;
+    this.takedowns = 0;
     this.ammo = 5;
     this.reloading = false;
     this.reloadTime = 0;
@@ -141,6 +150,12 @@ export class HighlineOperation {
       this.startReload();
     } else if (code === 'KeyE') {
       this.interact();
+    } else if (code === 'KeyQ') {
+      this.takedown();
+    } else if (code === 'KeyH') {
+      this.hideBody();
+    } else if (code === 'KeyX') {
+      this.toggleWeapon();
     }
   }
 
@@ -196,9 +211,27 @@ export class HighlineOperation {
 
   setAiming(value) {
     this.aiming = Boolean(value) && this.mode === 'playing';
+    if (this.aiming && !this.weaponDrawn) {
+      this.weaponDrawn = true;
+      this.world?.setWeaponDrawn(true);
+    }
     this.world?.setAiming(this.aiming);
     this.shell.classList.toggle('is-aiming', this.aiming);
     if (this.aiming) this.heading = Math.PI - this.world.cameraYaw;
+  }
+
+  toggleWeapon() {
+    if (this.weaponDrawn) {
+      this.setAiming(false);
+      this.weaponDrawn = false;
+      this.world.setWeaponDrawn(false);
+      this.showToast('RIFLE STOWED · STAY IN CHARACTER');
+    } else {
+      this.weaponDrawn = true;
+      this.world.setWeaponDrawn(true);
+      this.showToast('RIFLE DRAWN · SECURITY WILL NOTICE');
+    }
+    this.updateHud();
   }
 
   touchFire() {
@@ -219,13 +252,11 @@ export class HighlineOperation {
     const result = this.world.fire();
     if (result === 'hit') {
       this.targetDown = true;
-      this.alerted = true;
-      this.showToast('TARGET DOWN · MOVE TO THE SERVICE STAIRS');
+      this.raiseSecurityAlert('TARGET DOWN · SECURITY IS SEARCHING THE ROOF');
       this.updateObjective();
     } else if (result === 'miss') {
       this.misses += 1;
-      this.alerted = true;
-      this.showToast(this.misses === 1 ? 'SHOT MISSED · SECURITY IS LISTENING' : 'SECURITY IS CLOSING ON THE ROOF');
+      this.raiseSecurityAlert(this.misses === 1 ? 'SHOT MISSED · SECURITY IS SEARCHING THE ROOF' : 'SECURITY IS CLOSING ON YOUR POSITION');
     }
     this.updateHud();
   }
@@ -238,24 +269,90 @@ export class HighlineOperation {
   }
 
   interact() {
-    if (!this.world?.isNearExit()) {
-      this.showToast('STAIRWELL IS AT THE BACK OF THE ROOF');
+    if (!this.world) return;
+    if (!this.disguised && this.world.getSubduedGuardDistance() < 1.8) {
+      this.takeDisguise('security');
+      return;
+    }
+    if (!this.disguised && this.world.isNearLocker()) {
+      this.takeDisguise('crew');
+      return;
+    }
+    const exitRoute = this.world.getNearExit();
+    if (!exitRoute) {
+      this.showToast('USE THE CREW LOCKER OR APPROACH THE PATROL FROM BEHIND');
       return;
     }
     if (!this.targetDown) {
-      this.showToast('THE PRIMARY TARGET IS STILL ACTIVE');
+      this.showToast('THE TARGET IS STILL ACTIVE · EXITS ARE LOCKED');
       return;
     }
+    this.extractionRoute = exitRoute;
     this.completeMission();
+  }
+
+  takeDisguise(type) {
+    if (this.disguised) return;
+    this.disguised = true;
+    this.disguiseType = type;
+    this.setAiming(false);
+    this.weaponDrawn = false;
+    this.world.setWeaponDrawn(false);
+    this.world.setDisguise(true, type);
+    this.suspicion = Math.min(this.suspicion, 12);
+    this.showToast(type === 'security' ? 'SECURITY UNIFORM ACQUIRED · RIFLE STOWED' : 'EVENT CREW COVER ACTIVE · RIFLE STOWED');
+    this.updateHud();
+    this.updateObjective();
+  }
+
+  takedown() {
+    const status = this.world.getTakedownStatus(this.player);
+    if (!status.available) {
+      if (status.distance <= 1.65 && !status.behind) this.showToast('GET BEHIND THE ROOF GUARD');
+      else this.showToast('CROUCH AND CLOSE IN BEHIND SECURITY');
+      return;
+    }
+    if (this.world.subdueRoofGuard()) {
+      this.takedowns += 1;
+      this.showToast('SILENT TAKEDOWN · SEARCH THE UNIFORM OR HIDE THE BODY');
+      this.updateObjective();
+      this.updateHud();
+    }
+  }
+
+  hideBody() {
+    if (this.world.getSubduedGuardDistance() >= 1.8) {
+      this.showToast('NO SUBDUED GUARD NEARBY');
+      return;
+    }
+    if (this.world.hideRoofGuard()) {
+      this.showToast('BODY CONCEALED');
+      this.updateHud();
+    }
+  }
+
+  raiseSecurityAlert(message) {
+    if (!this.alerted) {
+      this.alerted = true;
+      this.suspicion = 100;
+      this.world.raiseRoofAlert(this.player);
+    }
+    this.showToast(message);
+    this.updateHud();
+    this.updateObjective();
   }
 
   completeMission() {
     this.mode = 'complete';
     this.setAiming(false);
+    this.interactionPrompt.hidden = true;
+    this.keys.clear();
     this.resultPanel.hidden = false;
     document.querySelector('#resultKicker').textContent = 'CONTRACT COMPLETE';
-    document.querySelector('#resultTitle').textContent = 'CLEAN EXIT.';
-    document.querySelector('#resultCopy').textContent = `The event director is down. You left the roof with ${this.ammo} round${this.ammo === 1 ? '' : 's'} still in the magazine.`;
+    document.querySelector('#resultTitle').textContent = this.alerted ? 'VANISHED.' : 'CLEAN EXIT.';
+    const cover = this.disguised ? (this.disguiseType === 'security' ? 'Roof security cover held.' : 'Event crew cover held.') : 'No disguise used.';
+    const exit = this.extractionRoute === 'lift' ? 'You took the maintenance lift.' : 'You left via the service stairwell.';
+    document.querySelector('#resultCopy').textContent = `The event director is down. ${cover} ${exit} Quiet takedowns: ${this.takedowns}. ${this.ammo} round${this.ammo === 1 ? '' : 's'} remain in the magazine.`;
     this.showGameplayHud(false);
   }
 
@@ -288,17 +385,20 @@ export class HighlineOperation {
     this.velocityZ = 0;
     this.targetDown = false;
     this.alerted = false;
+    this.suspicion = 0;
+    this.disguised = false;
+    this.disguiseType = 'none';
+    this.weaponDrawn = true;
+    this.takedowns = 0;
     this.ammo = 5;
     this.reloading = false;
     this.reloadTime = 0;
     this.misses = 0;
     this.crouched = false;
+    this.sprinting = false;
     this.keys.clear();
-    this.world.targetDown = false;
-    this.world.targetDownTimer = 0;
-    this.world.target?.root.rotation.set(0, 0, 0);
-    this.world.targetStartX = 0.15;
-    this.world.target?.root.position.set(0.15, 3.43, -29.25);
+    this.interactionPrompt.hidden = true;
+    this.world.resetMissionActors();
     this.world.cameraPitch = 0.19;
     this.world.cameraDistance = 4.55;
     this.world.zoomFov = 29;
@@ -340,21 +440,26 @@ export class HighlineOperation {
   }
 
   collides(x, z) {
-    // Roof HVAC and utility crate collision volumes; movement never passes through them.
+    // Rooftop service equipment, crew locker, and planter collision volumes.
     const hvac = x > -6.8 && x < -4.05 && z > 10.0 && z < 12.8;
     const utility = x > 4.72 && x < 6.7 && z > 9.75 && z < 11.9;
+    const crewLocker = x > 2.16 && x < 4.14 && z > 12.35 && z < 14.8;
     const rearPlanters = (Math.hypot(x + 6.2, z - 13.0) < 1.1) || (Math.hypot(x - 6.2, z - 13.0) < 1.1);
-    return hvac || utility || rearPlanters;
+    return hvac || utility || crewLocker || rearPlanters;
   }
 
   updateHud() {
     if (!this.world) return;
     document.querySelector('#ammoValue').textContent = String(this.ammo).padStart(2, '0');
+    this.weaponHud.classList.toggle('is-stowed', !this.weaponDrawn);
+    this.weaponState.textContent = this.weaponDrawn ? 'LONG-RANGE RIFLE' : 'STOWED · LONG-RANGE';
     document.querySelector('#targetDot').classList.toggle('is-complete', this.targetDown);
-    this.alertChip.classList.toggle('is-alert', this.alerted);
-    document.querySelector('#alertLabel').textContent = this.alerted ? 'SECURITY RESPONSE' : 'VISIBILITY';
-    document.querySelector('#alertState').textContent = this.alerted ? 'ON ALERT' : 'UNSEEN';
-    document.querySelector('#footerState').textContent = this.targetDown ? 'TARGET DOWN · SERVICE EXIT OPEN' : this.alerted ? 'GUNFIRE REPORTED · MOVE FAST' : 'ROOFTOP ACCESS · CLEAR';
+    this.alertChip.classList.toggle('is-alert', this.alerted || this.suspicion >= 58);
+    document.querySelector('#alertLabel').textContent = this.alerted ? 'SECURITY RESPONSE' : this.suspicion > 8 ? 'SUSPICION' : 'VISIBILITY';
+    document.querySelector('#alertState').textContent = this.alerted ? 'SEARCHING' : this.suspicion >= 72 ? 'EXPOSED' : this.suspicion > 8 ? 'NOTICED' : this.disguised ? 'IN COVER' : 'UNSEEN';
+    this.suspicionFill.style.width = `${this.alerted ? 100 : Math.round(this.suspicion)}%`;
+    this.disguiseValue.textContent = this.disguised ? (this.disguiseType === 'security' ? 'ROOF SECURITY' : 'EVENT CREW') : this.weaponDrawn ? 'CASUAL · ARMED' : 'CASUAL';
+    document.querySelector('#footerState').textContent = this.targetDown ? 'TARGET DOWN · EXITS OPEN' : this.alerted ? 'SECURITY SEARCHING · CHANGE POSITION' : this.suspicion > 8 ? 'ROOF PATROL IS WATCHING' : 'ROOFTOP ACCESS · CLEAR';
     this.scopeRange.textContent = `RANGE ${String(this.world.targetRange()).padStart(3, '0')} M`;
     this.updateObjective();
   }
@@ -363,23 +468,72 @@ export class HighlineOperation {
     const title = document.querySelector('#objectiveTitle');
     const detail = document.querySelector('#objectiveDetail');
     const kicker = document.querySelector('#objectiveKicker');
-    if (!title || !detail || !kicker) return;
+    if (!title || !detail || !kicker || !this.world) return;
     if (this.targetDown) {
       kicker.textContent = 'EXFILTRATION';
       title.textContent = 'REACH THE SERVICE EXIT';
-      detail.textContent = 'Use the green stairwell marker at the back of the roof.';
+      detail.textContent = 'Lose the roof search and choose the rear stairwell or the side maintenance lift.';
     } else if (this.alerted) {
       kicker.textContent = 'SECURITY RESPONSE';
-      title.textContent = 'TAKE THE SHOT';
-      detail.textContent = 'The balcony guards heard the report. Keep the optic on Marcus Ward.';
-    } else {
+      title.textContent = 'MOVE, THEN TAKE THE SHOT';
+      detail.textContent = 'Security is searching your last position. The event director is still on the VIP balcony.';
+    } else if (this.disguised) {
       kicker.textContent = 'PRIMARY OBJECTIVE';
       title.textContent = 'CONFIRM THE TARGET';
-      detail.textContent = 'Track the event director on the pit-lane balcony.';
+      detail.textContent = 'Crew cover is active. Watch the VIP balcony and choose your moment.';
+    } else if (this.world.roofGuard?.status === 'subdued') {
+      kicker.textContent = 'OPPORTUNITY';
+      title.textContent = 'TAKE THE SECURITY UNIFORM';
+      detail.textContent = 'Use E at the subdued guard, or reach the event crew locker near the stairwell.';
+    } else {
+      kicker.textContent = 'SOCIAL STEALTH';
+      title.textContent = 'GET THE EVENT CREW KIT';
+      detail.textContent = 'Stow your rifle. Use the crew locker or take the roof guard from behind and claim his uniform.';
     }
-    const near = this.world.isNearExit();
-    this.interactionPrompt.hidden = !(near && this.mode === 'playing');
-    if (near) this.interactionLabel.textContent = this.targetDown ? 'USE SERVICE STAIRWELL' : 'EXIT LOCKED · TARGET ACTIVE';
+    this.updateInteraction();
+  }
+
+  updateInteraction() {
+    if (!this.interactionPrompt || this.mode !== 'playing' || !this.world) {
+      if (this.interactionPrompt) this.interactionPrompt.hidden = true;
+      return;
+    }
+    const bodyDistance = this.world.getSubduedGuardDistance();
+    if (bodyDistance < 1.8 && !this.disguised) {
+      this.interactionPrompt.hidden = false;
+      this.interactionKey.textContent = 'E';
+      this.interactionLabel.textContent = 'TAKE ROOF SECURITY DISGUISE';
+      return;
+    }
+    if (bodyDistance < 1.8 && this.disguised) {
+      this.interactionPrompt.hidden = false;
+      this.interactionKey.textContent = 'H';
+      this.interactionLabel.textContent = 'HIDE SUBDUED GUARD';
+      return;
+    }
+    if (this.world.isNearLocker() && !this.disguised) {
+      this.interactionPrompt.hidden = false;
+      this.interactionKey.textContent = 'E';
+      this.interactionLabel.textContent = 'CHANGE INTO EVENT CREW';
+      return;
+    }
+    const exitRoute = this.world.getNearExit();
+    if (exitRoute) {
+      this.interactionPrompt.hidden = false;
+      this.interactionKey.textContent = 'E';
+      this.interactionLabel.textContent = this.targetDown
+        ? (exitRoute === 'lift' ? 'USE MAINTENANCE LIFT' : 'USE SERVICE STAIRWELL')
+        : 'EXIT LOCKED · TARGET ACTIVE';
+      return;
+    }
+    const takedown = this.world.getTakedownStatus(this.player);
+    if (takedown.distance <= 1.65 && takedown.behind) {
+      this.interactionPrompt.hidden = false;
+      this.interactionKey.textContent = 'Q';
+      this.interactionLabel.textContent = 'SILENT TAKEDOWN';
+      return;
+    }
+    this.interactionPrompt.hidden = true;
   }
 
   showToast(message) {
@@ -411,12 +565,25 @@ export class HighlineOperation {
           this.showToast('RIFLE READY');
         }
       }
-      if (this.world.isNearExit() && this.targetDown && this.interactionPrompt.hidden) {
-        this.interactionPrompt.hidden = false;
-        this.interactionLabel.textContent = 'USE SERVICE STAIRWELL';
-      } else if (!this.world.isNearExit() && !this.interactionPrompt.hidden) {
-        this.interactionPrompt.hidden = true;
+      const moving = Math.hypot(this.velocityX, this.velocityZ) > 0.08;
+      const exposure = this.world.getGuardAwareness({
+        player: this.player,
+        moving,
+        sprinting: this.sprinting,
+        crouched: this.crouched,
+        aiming: this.aiming,
+        weaponDrawn: this.weaponDrawn,
+        disguised: this.disguised
+      });
+      if (exposure > 0) {
+        this.suspicion = clamp(this.suspicion + exposure * dt, 0, 100);
+      } else if (!this.alerted) {
+        this.suspicion = Math.max(0, this.suspicion - dt * (this.disguised ? 24 : 17));
       }
+      if (this.suspicion >= 100 && !this.alerted) this.raiseSecurityAlert('IDENTITY COMPROMISED · SECURITY IS SEARCHING');
+      this.updateInteraction();
+    } else {
+      this.updateInteraction();
     }
     const state = {
       player: this.player,
@@ -426,6 +593,8 @@ export class HighlineOperation {
       sprinting: this.sprinting,
       crouched: this.crouched,
       aiming: this.aiming,
+      weaponDrawn: this.weaponDrawn,
+      disguised: this.disguised,
       cameraYaw: this.world.cameraYaw,
       cameraPitch: this.world.cameraPitch
     };

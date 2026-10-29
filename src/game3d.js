@@ -522,11 +522,23 @@ export class ThirdPersonWorld {
     this.player = null;
     this.target = null;
     this.guards = [];
+    this.roofGuard = null;
+    this.roofY = 10.82;
+    this.lockerPosition = new THREE.Vector3(3.15, 10.82, 13.15);
+    this.roofVisionBlockers = [
+      { minX: -6.8, maxX: -4.1, minZ: 10.0, maxZ: 12.8, maxY: 12.25 },
+      { minX: 4.8, maxX: 6.6, minZ: 9.8, maxZ: 11.8, maxY: 11.95 },
+      { minX: 2.15, maxX: 4.2, minZ: 13.55, maxZ: 14.8, maxY: 13.05 }
+    ];
     this.targetDown = false;
     this.targetDownTimer = 0;
     this.targetStartX = 0.15;
     this.targetLabel = null;
-    this.exitPosition = new THREE.Vector3(-0.72, 10.82, 13.15);
+    this.exitPosition = new THREE.Vector3(-0.72, 10.82, 13.35);
+    this.exitPositions = {
+      stairs: this.exitPosition,
+      lift: new THREE.Vector3(-5.55, 10.82, 4.2)
+    };
     this.rifleTexture = null;
     this.roadCars = [];
     this.effectsToExpire = [];
@@ -753,7 +765,35 @@ export class ThirdPersonWorld {
     world.add(beacon);
     const exitSign = box(world, -0.72, y + 3.9, 14.77, 2.2, 0.48, 0.08, material('#244436', 0.48, 0.14, { emissive: '#2f6948', emissiveIntensity: 0.34 }));
     addTextSprite(exitSign, 'SERVICE EXIT', { scale: 3.7, color: '#d8e4ce', background: 'rgba(22,55,38,.96)', border: 'rgba(151,205,145,.9)' }).position.set(0, 0, 0.06);
+    const locker = new THREE.Group();
+    locker.name = 'EventCrewLocker';
+    locker.position.set(3.15, y, 14.05);
+    world.add(locker);
+    const lockerBody = material('#46544d', 0.62, 0.25);
+    const lockerDoor = material('#738071', 0.68, 0.18);
+    box(locker, 0, 1.07, 0, 1.82, 2.12, 0.72, lockerBody);
+    for (const x of [-0.43, 0.43]) {
+      box(locker, x, 1.08, -0.38, 0.78, 1.88, 0.055, lockerDoor, { castShadow: false });
+      box(locker, x + 0.25, 1.1, -0.424, 0.035, 0.24, 0.035, material('#c0ad78', 0.38, 0.5), { castShadow: false });
+      for (let i = 0; i < 4; i += 1) box(locker, x, 1.72 - i * 0.095, -0.421, 0.35, 0.026, 0.018, material('#4a574f', 0.7, 0.12), { castShadow: false });
+    }
+    const lockerSign = addTextSprite(locker, 'EVENT CREW', { scale: 1.8, color: '#e3e0c9', background: 'rgba(30,54,43,.96)', border: 'rgba(180,203,146,.9)' });
+    lockerSign.position.set(0, 2.35, -0.43);
+    this.lockerPosition.set(3.15, y, 12.95);
     this.exitPosition.set(-0.72, y, 13.35);
+    this.exitPositions.lift.set(-5.55, y, 4.2);
+    const ladderMetal = material('#56645c', 0.48, 0.42);
+    beam(world, [-7.18, y + 0.12, 3.55], [-7.18, y + 2.42, 3.55], 0.045, ladderMetal, 7);
+    beam(world, [-6.82, y + 0.12, 3.55], [-6.82, y + 2.42, 3.55], 0.045, ladderMetal, 7);
+    for (let rung = 0; rung < 8; rung += 1) {
+      const rungY = y + 0.2 + rung * 0.29;
+      beam(world, [-7.18, rungY, 3.55], [-6.82, rungY, 3.55], 0.028, ladderMetal, 6);
+    }
+    const liftMarker = addTextSprite(world, 'MAINT. LIFT', { scale: 1.65, color: '#dbe7d3', background: 'rgba(28,58,43,.94)', border: 'rgba(139,204,145,.82)' });
+    liftMarker.position.set(-6.2, y + 2.35, 3.5);
+    const liftLight = new THREE.PointLight('#8ccd91', 0.65, 4, 2);
+    liftLight.position.set(-5.75, y + 1.9, 3.8);
+    world.add(liftLight);
     // A pair of planters frames the back of the roof; broad leaves are silhouette accents.
     this.addPlanter(world, -6.2, 13.0, 0.9);
     this.addPlanter(world, 6.2, 13.0, 0.9);
@@ -999,8 +1039,8 @@ export class ThirdPersonWorld {
   async createPlayer() {
     const avatar = await this.makeAvatar(this.playerConfig(), '2k');
     avatar.group.name = 'FieldOperative';
-    addPoloDetails(avatar);
-    this.player = { avatar, bones: {}, legRest: new Map(), armRest: new Map(), movePhase: 0, moving: false };
+    const poloDetails = addPoloDetails(avatar);
+    this.player = { avatar, poloDetails, bones: {}, legRest: new Map(), armRest: new Map(), movePhase: 0, moving: false, weaponDrawn: true, disguised: false };
     this.playerRoot.add(avatar.group);
     this.preparePlayerRifle(avatar);
     for (const name of ['LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftFoot', 'RightFoot']) {
@@ -1088,7 +1128,8 @@ export class ThirdPersonWorld {
     const positions = [
       { role: 'target', x: 0.15, z: -29.25, tint: '#a9a291' },
       { role: 'guard', x: -4.1, z: -30.05, tint: '#5c6766' },
-      { role: 'guard', x: 4.4, z: -29.7, tint: '#4b5654' }
+      { role: 'guard', x: 4.4, z: -29.7, tint: '#4b5654' },
+      { role: 'roofGuard', x: 3.6, y: this.roofY, z: 4.2, tint: '#536d59' }
     ];
     const config = this.npcConfig();
     const actors = await Promise.all(positions.map(async (entry) => {
@@ -1096,15 +1137,24 @@ export class ThirdPersonWorld {
       const outfit = avatar.group.getObjectByName('clothes-male_casualsuit05');
       if (outfit?.material?.color) outfit.material.color.set(entry.tint);
       const root = new THREE.Group();
-      root.position.set(entry.x, 3.43, entry.z);
+      root.position.set(entry.x, entry.y ?? 3.43, entry.z);
       root.add(avatar.group);
       avatar.group.rotation.y = Math.PI;
       root.add(addActorShadow(root, 0.35, 0.22));
       this.actorLayer.add(root);
       return { ...entry, avatar, root, phase: Math.random() * TAU };
     }));
-    this.target = actors[0];
-    this.guards = actors.slice(1);
+    this.target = actors.find((actor) => actor.role === 'target');
+    this.guards = actors.filter((actor) => actor.role === 'guard');
+    this.roofGuard = actors.find((actor) => actor.role === 'roofGuard');
+    this.roofGuard.status = 'patrolling';
+    this.roofGuard.heading = 0;
+    this.roofGuard.patrolPath = [
+      { x: 3.6, z: 4.2 }, { x: 3.6, z: 6.4 }, { x: -3.5, z: 6.4 }, { x: -3.5, z: 4.2 }
+    ];
+    this.roofGuard.patrolIndex = 1;
+    this.roofGuard.downTimer = 0;
+    this.roofGuard.hidden = false;
     this.targetLabel = addTextSprite(this.dynamic, 'MARCUS WARD', { scale: 2.0, color: '#efe2c5', background: 'rgba(44,26,23,.88)', border: 'rgba(211,165,113,.8)' });
     this.targetLabel.position.set(this.target.x, 5.7, this.target.z);
   }
@@ -1128,7 +1178,7 @@ export class ThirdPersonWorld {
     rifle.position.set(0.08, 1.43, 0.25);
     root.add(rifle);
     this.playerRoot.add(root);
-    this.player = { fallback: root, legRest: new Map(), movePhase: 0 };
+    this.player = { fallback: root, fallbackRifle: rifle, fallbackShirt: shirt, legRest: new Map(), movePhase: 0, weaponDrawn: true, disguised: false };
     this.playerRoot.position.set(-0.72, 10.82, 7.35);
   }
 
@@ -1141,17 +1191,70 @@ export class ThirdPersonWorld {
     head.position.y = 1.72;
     const makeFallback = (entry) => {
       const root = new THREE.Group();
-      root.position.set(entry.x, 3.43, entry.z);
+      root.position.set(entry.x, entry.y ?? 3.43, entry.z);
       root.add(body.clone(), head.clone());
       this.actorLayer.add(root);
       return { ...entry, root, avatar: null, phase: 0 };
     };
     this.target = makeFallback({ role: 'target', x: 0.15, z: -29.25 });
     this.guards = [makeFallback({ role: 'guard', x: -4.1, z: -30.05 }), makeFallback({ role: 'guard', x: 4.4, z: -29.7 })];
+    this.roofGuard = makeFallback({ role: 'roofGuard', x: 3.6, y: this.roofY, z: 4.2 });
+    this.roofGuard.status = 'patrolling';
+    this.roofGuard.heading = 0;
+    this.roofGuard.patrolPath = [
+      { x: 3.6, z: 4.2 }, { x: 3.6, z: 6.4 }, { x: -3.5, z: 6.4 }, { x: -3.5, z: 4.2 }
+    ];
+    this.roofGuard.patrolIndex = 1;
+    this.roofGuard.downTimer = 0;
+    this.roofGuard.hidden = false;
+    this.targetLabel = addTextSprite(this.dynamic, 'MARCUS WARD', { scale: 2.0, color: '#efe2c5', background: 'rgba(44,26,23,.88)', border: 'rgba(211,165,113,.8)' });
+    this.targetLabel.position.set(this.target.x, 5.7, this.target.z);
   }
 
   setAiming(value) {
     this.aiming = Boolean(value);
+    if (this.aiming) this.setWeaponDrawn(true);
+  }
+
+  setWeaponDrawn(value) {
+    if (!this.player) return;
+    const drawn = Boolean(value);
+    this.player.weaponDrawn = drawn;
+    if (this.player.rifleRoot) this.player.rifleRoot.visible = drawn;
+    if (this.player.fallbackRifle) this.player.fallbackRifle.visible = drawn;
+    if (drawn && this.player.avatar) this.posePlayerArms(this.cameraPitch);
+    else if (this.player.avatar) {
+      for (const [name, rest] of this.player.armRest || []) {
+        const bone = pickBone(this.player.avatar, name);
+        if (bone) bone.quaternion.copy(rest);
+      }
+      this.player.avatar.group.updateMatrixWorld(true);
+    }
+  }
+
+  async setDisguise(value, type = 'crew') {
+    if (!this.player) return;
+    const disguised = Boolean(value);
+    const outfitId = !disguised ? 'male_casualsuit06' : type === 'security' ? 'male_casualsuit05' : 'male_worksuit01';
+    this.player.disguised = disguised;
+    this.player.disguiseType = disguised ? type : 'none';
+    if (this.player.poloDetails) this.player.poloDetails.visible = !disguised;
+    if (this.player.fallbackShirt) this.player.fallbackShirt.color.set(disguised ? (type === 'security' ? '#596b5d' : '#68785f') : '#dfacb0');
+    if (this.player.avatar?.setConfig) {
+      try {
+        await this.player.avatar.setConfig({
+          clothes: [outfitId, 'shoes01'],
+          garmentColors: { outfit: '#ffffff' }
+        });
+        const outfit = this.player.avatar.proxies.get(`clothes:${outfitId}`)?.mesh;
+        const materials = Array.isArray(outfit?.material) ? outfit.material : [outfit?.material];
+        for (const material of materials) {
+          if (material?.color) material.color.set(disguised && type === 'security' ? '#78846f' : '#ffffff');
+        }
+      } catch (error) {
+        console.warn('Uniform could not be loaded; using a tinted outfit.', error);
+      }
+    }
   }
 
   orbitCamera(deltaX, deltaY) {
@@ -1171,6 +1274,126 @@ export class ThirdPersonWorld {
     }
   }
 
+  getGuardAwareness(state) {
+    const guard = this.roofGuard;
+    const player = state.player;
+    if (!guard || !player || guard.status !== 'patrolling' || guard.hidden) return 0;
+    const dx = player.x - guard.root.position.x;
+    const dz = player.z - guard.root.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > 10.5 || distance < 0.05) return 0;
+    const facing = (Math.sin(guard.heading) * dx + Math.cos(guard.heading) * dz) / distance;
+    if (facing < 0.58) return 0;
+
+    const startY = guard.root.position.y + 1.52;
+    const endY = player.y + (state.crouched ? 0.88 : 1.34);
+    for (let step = 1; step < 20; step += 1) {
+      const t = step / 20;
+      const x = guard.root.position.x + dx * t;
+      const z = guard.root.position.z + dz * t;
+      const y = startY + (endY - startY) * t;
+      if (this.roofVisionBlockers.some((block) => x >= block.minX && x <= block.maxX && z >= block.minZ && z <= block.maxZ && y <= block.maxY)) return 0;
+    }
+
+    const rangeFactor = clamp(1 - distance / 10.5, 0, 1);
+    const coneFactor = clamp((facing - 0.58) / 0.42, 0, 1);
+    let rate = 28 + (state.moving ? 10 : 0) + (state.sprinting ? 24 : 0) + (state.weaponDrawn ? 24 : 0) + (state.aiming ? 27 : 0);
+    if (state.crouched) rate *= 0.24;
+    if (state.disguised) rate *= 0.26;
+    return rate * rangeFactor * coneFactor;
+  }
+
+  getTakedownStatus(player) {
+    const guard = this.roofGuard;
+    if (!guard || !player || guard.status === 'subdued' || guard.hidden) return { available: false, distance: Infinity, behind: false };
+    const dx = player.x - guard.root.position.x;
+    const dz = player.z - guard.root.position.z;
+    const distance = Math.hypot(dx, dz);
+    const facing = distance > 0.001 ? (Math.sin(guard.heading) * dx + Math.cos(guard.heading) * dz) / distance : 1;
+    return { available: distance <= 1.65 && facing < -0.24, distance, behind: facing < -0.24, guard };
+  }
+
+  subdueRoofGuard() {
+    const guard = this.roofGuard;
+    if (!guard || guard.status === 'subdued' || guard.hidden) return false;
+    guard.status = 'subdued';
+    guard.downTimer = 0;
+    guard.root.rotation.set(0, guard.root.rotation.y, 0);
+    return true;
+  }
+
+  hideRoofGuard() {
+    const guard = this.roofGuard;
+    if (!guard || guard.status !== 'subdued' || guard.hidden) return false;
+    guard.hidden = true;
+    guard.status = 'hidden';
+    guard.root.visible = false;
+    return true;
+  }
+
+  raiseRoofAlert(position) {
+    const guard = this.roofGuard;
+    if (!guard || guard.status !== 'patrolling') return;
+    guard.status = 'searching';
+    guard.searchTarget = { x: position.x, z: position.z };
+    guard.searchTimer = 9.5;
+  }
+
+  isNearLocker() {
+    const p = this.playerRoot.position;
+    return Math.hypot(p.x - this.lockerPosition.x, p.z - this.lockerPosition.z) < 1.85;
+  }
+
+  getSubduedGuardDistance() {
+    if (!this.roofGuard || this.roofGuard.status !== 'subdued' || this.roofGuard.hidden) return Infinity;
+    const p = this.playerRoot.position;
+    return Math.hypot(p.x - this.roofGuard.root.position.x, p.z - this.roofGuard.root.position.z);
+  }
+
+  updateRoofGuard(dt, state) {
+    const guard = this.roofGuard;
+    if (!guard || guard.hidden) return;
+    if (guard.status === 'subdued') {
+      guard.downTimer = Math.min(1, guard.downTimer + dt * 1.5);
+      guard.root.rotation.x = -Math.min(1.18, guard.downTimer * 1.18);
+      return;
+    }
+
+    let destination;
+    let speed = 0.9;
+    if (guard.status === 'searching') {
+      destination = guard.searchTarget;
+      speed = 1.75;
+      guard.searchTimer -= dt;
+      if (guard.searchTimer <= 0) {
+        guard.status = 'patrolling';
+        destination = null;
+      }
+    }
+    if (!destination) {
+      const path = guard.patrolPath;
+      destination = path?.[guard.patrolIndex];
+      if (!destination) return;
+      const remaining = Math.hypot(destination.x - guard.root.position.x, destination.z - guard.root.position.z);
+      if (remaining < 0.14) {
+        guard.patrolIndex = (guard.patrolIndex + 1) % path.length;
+        destination = path[guard.patrolIndex];
+      }
+    }
+
+    const dx = destination.x - guard.root.position.x;
+    const dz = destination.z - guard.root.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > 0.02) {
+      const travel = Math.min(distance, speed * dt);
+      guard.root.position.x += dx / distance * travel;
+      guard.root.position.z += dz / distance * travel;
+      guard.heading = Math.atan2(dx, dz);
+    }
+    if (guard.avatar) guard.avatar.group.rotation.y = guard.heading;
+    else guard.root.rotation.y = guard.heading;
+  }
+
   update(state, dt) {
     const delta = clamp(dt, 0, 0.05);
     this.time += delta;
@@ -1180,6 +1403,9 @@ export class ThirdPersonWorld {
       if (this.aiming && this.player?.avatar) this.posePlayerArms(this.cameraPitch);
     }
     this.aiming = Boolean(state.aiming);
+    if (state.weaponDrawn !== undefined && Boolean(state.weaponDrawn) !== Boolean(this.player?.weaponDrawn)) {
+      this.setWeaponDrawn(Boolean(state.weaponDrawn));
+    }
     const p = state.player || { x: -0.72, y: 10.82, z: 7.35 };
     this.playerRoot.position.set(p.x, p.y, p.z);
     if (this.player?.avatar) {
@@ -1225,6 +1451,7 @@ export class ThirdPersonWorld {
       const look = this.aiming && !this.targetDown ? (i === 0 ? 0.16 : -0.16) : Math.sin(this.time * 0.32 + guard.phase) * 0.06;
       guard.avatar.group.rotation.y = Math.PI + look;
     });
+    this.updateRoofGuard(delta, state);
 
     this.updateCars(delta);
     this.updateCamera(state, delta);
@@ -1328,6 +1555,31 @@ export class ThirdPersonWorld {
     }
   }
 
+  resetMissionActors() {
+    this.targetDown = false;
+    this.targetDownTimer = 0;
+    if (this.target) {
+      this.target.root.rotation.set(0, 0, 0);
+      this.target.root.position.set(0.15, 3.43, -29.25);
+      this.targetStartX = 0.15;
+    }
+    if (this.roofGuard) {
+      this.roofGuard.status = 'patrolling';
+      this.roofGuard.hidden = false;
+      this.roofGuard.root.visible = true;
+      this.roofGuard.root.position.set(3.6, this.roofY, 4.2);
+      this.roofGuard.root.rotation.set(0, 0, 0);
+      this.roofGuard.heading = 0;
+      this.roofGuard.patrolIndex = 1;
+      this.roofGuard.downTimer = 0;
+      this.roofGuard.searchTarget = null;
+      this.roofGuard.searchTimer = 0;
+      if (this.roofGuard.avatar) this.roofGuard.avatar.group.rotation.set(0, 0, 0);
+    }
+    this.setWeaponDrawn(true);
+    this.setDisguise(false);
+  }
+
   targetRange() {
     if (!this.target) return 0;
     return Math.round(this.camera.position.distanceTo(this.target.root.position.clone().add(new THREE.Vector3(0, 1.23, 0))));
@@ -1337,9 +1589,16 @@ export class ThirdPersonWorld {
     return this.playerRoot.position.clone();
   }
 
-  isNearExit() {
+  getNearExit() {
     const p = this.playerRoot.position;
-    return Math.hypot(p.x - this.exitPosition.x, p.z - this.exitPosition.z) < 1.85;
+    for (const [type, position] of Object.entries(this.exitPositions)) {
+      if (Math.hypot(p.x - position.x, p.z - position.z) < 1.85) return type;
+    }
+    return null;
+  }
+
+  isNearExit() {
+    return Boolean(this.getNearExit());
   }
 
   render() {
