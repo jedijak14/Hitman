@@ -2,199 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#090b0d" />
-  <meta name="description" content="A cinematic, browser-playable stealth contract. Plan the approach, choose a disguise, and leave no trace." />
-  <title>The Silent Coast — Field Operations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#14221f" />
+  <meta name="description" content="A third-person stealth-action mission above a championship street circuit." />
+  <title>The Highline — Field Operations</title>
+  <link rel="preconnect" href="/" />
   <link rel="stylesheet" href="./style.css" />
-  <script type="module" src="./bootstrap.js"></script>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+  <script type="module" src="./src/main.js"></script>
 </head>
 <body>
-  <main id="app" data-state="menu">
-    <canvas id="worldCanvas" aria-label="A 3D stealth mission inside a coastal event venue"></canvas>
-    <div class="world-shade" aria-hidden="true"></div>
+  <main class="game-shell" id="gameShell">
+    <canvas id="worldCanvas" aria-label="Third-person view of a rooftop overlooking a grand prix circuit"></canvas>
+    <div class="cinema-grade" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
-    <div class="render-notice" id="renderNotice" role="status" aria-live="polite" hidden></div>
+    <div class="letterbox letterbox-top" aria-hidden="true"></div>
+    <div class="letterbox letterbox-bottom" aria-hidden="true"></div>
 
-    <header class="topbar">
-      <div class="brand-lockup" aria-label="Silent Coast field operations">
-        <div class="brand-word">SILENT COAST</div>
-        <div class="brand-rule"></div>
-        <div class="brand-caption">FIELD<br />OPERATIONS</div>
-      </div>
-      <div class="topbar-center"><span class="live-dot"></span> FIELD OPERATIONS <span class="topbar-divider">/</span> <span id="topMissionLabel">MIAMI · FLORIDA</span></div>
-      <div class="topbar-right">
-        <div class="profile-chip"><span class="profile-avatar">07</span><span>FIELD AGENT <b>07</b></span></div>
-        <button class="icon-button" id="soundToggle" type="button" aria-label="Toggle sound effects" title="Toggle sound effects">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a5 5 0 0 1 0 6M18.5 6.5a9 9 0 0 1 0 11"/></svg>
-        </button>
-      </div>
+    <div class="loading-screen" id="loadingScreen" role="status" aria-live="polite">
+      <div class="loading-mark">SC<span> / </span>07</div>
+      <div class="loading-line"><i id="loadingProgress"></i></div>
+      <p id="loadingLabel">BUILDING THE OVERLOOK</p>
+    </div>
+
+    <header class="hud-top" id="topHud" hidden>
+      <div class="brand-lockup"><span class="brand-sigil">SC</span><span class="brand-name">SILENT COAST<small>FIELD OPERATIONS</small></span></div>
+      <div class="mission-location"><span class="live-pip"></span><span>MIAMI · GRAND PRIX WEEKEND</span><i></i><b>16:42</b></div>
+      <div class="agent-chip"><span class="agent-status"></span><span>FIELD AGENT <b>NV</b></span></div>
     </header>
 
-    <section class="screen title-screen is-active" id="titleScreen" aria-labelledby="titleHeading">
-      <div class="title-content">
-        <div class="title-topline">
-          <span class="eyebrow-line"></span>
-          <span class="title-topline-label">NEW CONTRACT</span>
-          <span class="title-code" id="titleCode">01 / 03</span>
-        </div>
-        <p class="title-overline">FIELD OPERATIONS <span> / </span> CAMPAIGN FILE</p>
-        <h1 id="titleHeading" class="title-title">THE SILENT<br />COAST</h1>
-        <p class="title-location"><span class="location-dot"></span><span id="titleLocation">MIAMI, FLORIDA</span></p>
-        <p class="title-description" id="titleDescription">A private summit. A public spectacle. Two people who know too much.</p>
-
-        <div class="contract-row">
-          <div class="contract-marker"><span class="marker-inner"></span></div>
-          <div><span class="contract-label">ACTIVE CONTRACT</span><strong id="titleVenue">KRONSTADT INNOVATION SUMMIT</strong></div>
-          <div class="contract-difficulty"><span class="difficulty-stars">◆ ◆ ◆</span><small>PROFESSIONAL</small></div>
-        </div>
-
-        <div class="contract-picker-label"><span>CHOOSE AN OPERATION</span><span class="picker-rule"></span><span>03 MISSIONS</span></div>
-        <div class="contract-picker" id="contractPicker" role="group" aria-label="Select a story mission"></div>
-
-        <div class="title-actions">
-          <button class="primary-button" id="openBriefing" type="button"><span>VIEW BRIEFING</span><span class="button-arrow">↗</span></button>
-          <button class="text-button" id="showControls" type="button">FIELD MANUAL <span>↗</span></button>
-        </div>
-        <p class="title-footnote"><span class="footnote-symbol">◈</span> THREE CONTRACTS <span class="footnote-separator">·</span> ONE OPERATIVE <span class="footnote-separator">·</span> YOUR METHOD IS YOUR OWN</p>
+    <section class="mission-card hud-element" id="missionCard" hidden aria-label="Mission objective">
+      <div class="mission-card-kicker"><span>OPERATION 01</span><i></i><span>ROOFTOP OVERWATCH</span></div>
+      <div class="mission-card-title-row"><h1>THE<br /><em>HIGHLINE</em></h1><span class="mission-index">01<br /><small>/ 01</small></span></div>
+      <p class="mission-summary">One shot in a city full of witnesses. Stay above the grid, then vanish before security finds the stairwell.</p>
+      <div class="objective-block">
+        <span class="mini-eyebrow" id="objectiveKicker">PRIMARY OBJECTIVE</span>
+        <b id="objectiveTitle">CONFIRM THE TARGET</b>
+        <small id="objectiveDetail">Track the event director on the pit-lane balcony.</small>
       </div>
+      <div class="target-identity"><span class="target-photo">MW</span><span><small>PERSON OF INTEREST</small><b>MARCUS WARD</b><i>EVENT DIRECTOR</i></span><span class="target-dot" id="targetDot"></span></div>
     </section>
 
-    <section class="screen briefing-screen" id="briefingScreen" aria-labelledby="briefingHeading" hidden>
-      <div class="briefing-shell">
-        <div class="briefing-heading-row">
-          <div>
-            <div class="eyebrow"><span class="eyebrow-line"></span> INTELLIGENCE FILE <span class="eyebrow-dot">•</span> <span id="briefingLocation">MIAMI, FLORIDA</span></div>
-            <h2 id="briefingHeading">THE SILENT COAST</h2>
-            <p class="briefing-subtitle" id="briefingVenue">KRONSTADT INNOVATION SUMMIT · DAY 01</p>
-          </div>
-          <button class="icon-button close-button" id="closeBriefing" type="button" aria-label="Close briefing">×</button>
-        </div>
-        <div class="briefing-grid">
-          <article class="briefing-story">
-            <div class="section-label">THE SITUATION <span>01</span></div>
-            <p id="briefingStory">A private summit has drawn the architects of a covert weapons program to Miami. The press sees a product launch. We see a meeting of people who should never have met.</p>
-            <p class="briefing-quote" id="briefingQuote">“Two targets. One clean exit. The rest is up to you.”</p>
-            <div class="briefing-intel-strip">
-              <span class="intel-icon">⌕</span>
-              <div><b>OPPORTUNITY</b><small id="briefingOpportunity">The prototype demo has a weakness. Find the right access and make it look like an accident.</small></div>
-            </div>
-          </article>
-          <aside class="briefing-targets">
-            <div class="section-label">YOUR TARGETS <span>02</span></div>
-            <div class="target-card">
-              <div class="target-portrait portrait-one"><span>NV</span></div>
-              <div class="target-copy"><span>PRIMARY TARGET</span><b id="targetOneName">NORA VALE</b><small id="targetOneRole">DIRECTOR, KRONSTADT R&amp;D</small></div>
-              <div class="target-status">●</div>
-            </div>
-            <div class="target-card">
-              <div class="target-portrait portrait-two"><span>!</span></div>
-              <div class="target-copy"><span>SECONDARY TARGET</span><b id="targetTwoName">MAREK ROOK</b><small id="targetTwoRole">SUMMIT SECURITY DIRECTOR</small></div>
-              <div class="target-status">●</div>
-            </div>
-            <div class="briefing-loadout">
-              <span class="section-label">STANDARD ISSUE</span>
-              <div class="loadout-items"><span><i class="loadout-icon wire-icon">⌁</i> FIBER WIRE</span><span><i class="loadout-icon pistol-icon">▰</i> SILENCED PISTOL · 8</span><span><i class="loadout-icon coin-icon">◉</i> COIN</span></div>
-            </div>
-          </aside>
-        </div>
-        <div class="briefing-footer">
-          <div class="briefing-warning"><span>⚠</span> EXPECT SECURITY CHECKPOINTS IN RESTRICTED AREAS</div>
-          <button class="primary-button deploy-button" id="deployMission" type="button"><span>DEPLOY TO MISSION</span><span class="button-arrow">↗</span></button>
-        </div>
-      </div>
+    <div class="alert-chip hud-element" id="alertChip" hidden>
+      <span class="alert-ring"><i></i></span><span><small id="alertLabel">VISIBILITY</small><b id="alertState">UNSEEN</b></span>
+    </div>
+
+    <section class="weapon-hud hud-element" id="weaponHud" hidden aria-label="Equipment">
+      <div class="weapon-name"><span class="weapon-icon">⌁</span><span><small>LONG-RANGE RIFLE</small><b>AWP · MK II</b></span></div>
+      <div class="ammo-readout"><b id="ammoValue">05</b><span>/ 05</span></div>
+      <div class="ammo-label">CHAMBERED</div>
     </section>
 
-    <section id="gameHud" class="game-hud" aria-label="Mission interface" hidden>
-      <div class="hud-top-left hud-panel mission-objectives">
-        <div class="hud-panel-head"><span class="eyebrow-line"></span><span>MISSION OBJECTIVES</span><span class="mission-code" id="missionCode">01 / 03</span></div>
-        <h2 id="hudMissionTitle">THE SILENT COAST</h2>
-        <p class="hud-location" id="hudLocation">KRONSTADT SUMMIT · MIAMI</p>
-        <ul id="objectiveList" class="objective-list"></ul>
-        <button id="storyHintButton" class="story-hint-button" type="button"><span>◈</span> STORY OPPORTUNITY <i>↗</i></button>
-      </div>
+    <div class="reticle" id="reticle" aria-hidden="true" hidden>
+      <i class="tick tick-top"></i><i class="tick tick-right"></i><i class="tick tick-bottom"></i><i class="tick tick-left"></i><i class="reticle-dot"></i>
+    </div>
+    <div class="scope-overlay" id="scopeOverlay" aria-hidden="true">
+      <div class="scope-circle"><i class="scope-crosshair scope-horizontal"></i><i class="scope-crosshair scope-vertical"></i><i class="scope-center"></i><span class="scope-range" id="scopeRange">RANGE 038 M</span></div>
+      <div class="scope-label">FIELD OPTIC <span>×04</span></div>
+    </div>
 
-      <div class="hud-alert" id="alertPanel" aria-live="polite">
-        <span class="alert-indicator"></span>
-        <span class="alert-copy"><b id="alertStatus">UNSEEN</b><small id="alertSubstatus">NO ONE IS LOOKING</small></span>
-        <div class="central-suspicion" aria-label="Disguise suspicion">
-          <div class="central-suspicion-label"><span>DISGUISE INTEGRITY</span><b id="centralSuspicion">0%</b></div>
-          <div class="central-suspicion-track"><i id="centralSuspicionFill"></i></div>
-          <small id="suspicionZone">PUBLIC · SUMMIT GUEST</small>
-        </div>
-      </div>
+    <div class="interaction-prompt" id="interactionPrompt" hidden><kbd>E</kbd><span id="interactionLabel">USE STAIRWELL</span></div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden><span class="toast-mark">✳</span><span id="toastText">TARGET CONFIRMED</span></div>
 
-      <div class="hud-top-right">
-        <div class="hud-panel disguise-panel"><div class="mini-label">CURRENT DISGUISE</div><div class="disguise-line"><span class="disguise-icon" id="disguiseIcon">G</span><span><b id="disguiseName">SUMMIT GUEST</b><small id="disguiseAccess">PUBLIC AREAS</small></span></div><div class="disguise-state" id="disguiseState">UNRECOGNISED</div></div>
-        <div class="hud-panel map-toggle-panel"><span class="mini-label">TACTICAL MAP</span><button id="toggleMap" type="button" aria-label="Expand tactical map"><span>⌖</span><kbd>TAB</kbd></button></div>
-        <button class="hud-pause" id="pauseButton" type="button" aria-label="Pause mission" title="Pause mission">Ⅱ</button>
-      </div>
+    <div class="cross-controls hud-element" id="controlsHint" hidden>
+      <span><kbd>W A S D</kbd> MOVE</span><span><kbd>SHIFT</kbd> RUN</span><span><kbd>C</kbd> CROUCH</span><span><kbd>RMB</kbd> AIM</span><span><kbd>LMB</kbd> FIRE</span>
+    </div>
 
-      <div class="minimap-wrap" id="minimapWrap">
-        <div class="minimap-heading"><span>MIAMI · SECTOR 01</span><span class="map-north">N ↑</span></div>
-        <canvas id="minimapCanvas" width="240" height="160" aria-label="Tactical mini-map"></canvas>
-        <div class="minimap-legend"><span><i class="map-dot you"></i>YOU</span><span><i class="map-dot target"></i>TARGET</span><span><i class="map-dot guard"></i>SECURITY</span><span><i class="map-dot enforcer"></i>ENFORCER</span></div>
-      </div>
-
-      <div class="hud-bottom-left">
-        <div class="region-label"><span class="region-pip"></span><span id="regionName">PUBLIC PLAZA</span><span class="region-divider">/</span><span id="regionAccess">CLEAR</span></div>
-        <div class="suspicion-track"><span id="suspicionFill"></span><i class="suspicion-eye">◉</i><span id="suspicionText">SUSPICION</span></div>
-      </div>
-
-      <div class="context-prompt" id="contextPrompt" aria-live="polite"><span class="context-key">E</span><span class="context-copy"><b>INTERACT</b><small>Approach a person or object</small></span></div>
-      <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
-
-      <div class="hud-bottom-right">
-        <div class="health-readout"><div><span>VITALS</span><b id="healthValue">100%</b></div><div class="vital-track"><i id="healthFill"></i></div></div>
-        <div class="weapon-readout"><span class="weapon-overline">ACTIVE ITEM <i id="ammoCount"></i></span><b id="weaponName">FIBER WIRE</b><div class="weapon-slots"><button class="weapon-slot selected" type="button" data-slot="1" aria-label="Equip fiber wire"><kbd>1</kbd><i>⌁</i></button><button class="weapon-slot" type="button" data-slot="2" aria-label="Equip silenced pistol"><kbd>2</kbd><i>▰</i></button><button class="weapon-slot" type="button" data-slot="3" aria-label="Equip coin"><kbd>3</kbd><i>◉</i></button></div></div>
-        <div class="controls-strip"><span><kbd>WASD</kbd> MOVE</span><span><kbd>SHIFT</kbd> RUN</span><span><kbd>C</kbd> CROUCH</span><span><kbd>E</kbd> INTERACT</span><span><kbd>F</kbd> USE ITEM</span><span><kbd>Q</kbd> TAKEDOWN</span><span><kbd>G</kbd> DRAG</span><span><kbd>H</kbd> HIDE</span></div>
-      </div>
-      <div class="blend-indicator" id="blendIndicator" hidden><span class="blend-ring"></span> BLENDING IN <small>HOLD STILL</small></div>
+    <section class="intro-panel" id="introPanel" aria-labelledby="introTitle" hidden>
+      <div class="intro-kicker"><span class="kicker-rule"></span> MIAMI, FLORIDA <span>—</span> 16:42 LOCAL</div>
+      <p class="intro-overline">CONTRACT 01 <span>/</span> THE GRAND PRIX</p>
+      <h2 id="introTitle">THE<br /><em>HIGHLINE</em></h2>
+      <p class="intro-copy">A quiet perch above the loudest race in the city. Find the event director, make your move, and take the service stairs out.</p>
+      <div class="intro-intel"><span class="intel-icon">⌖</span><span><small>LIVE INTELLIGENCE</small><b>Target moves between pit lane and the VIP balcony.</b></span></div>
+      <button class="deploy-button" id="deployButton" type="button"><span>DEPLOY TO THE OVERLOOK</span><i>↗</i></button>
+      <button class="manual-button" id="manualButton" type="button">FIELD MANUAL <span>+</span></button>
+      <div class="intro-foot"><span>THIRD-PERSON FIELD VIEW</span><span>BUILD 01.03</span></div>
     </section>
 
-    <section class="screen modal-screen" id="pauseScreen" aria-labelledby="pauseHeading" hidden>
-      <div class="modal-card pause-card">
-        <div class="eyebrow"><span class="eyebrow-line"></span> CONTRACT PAUSED</div>
-        <h2 id="pauseHeading">TAKE A MOMENT.</h2>
-        <p>Stay sharp. The room will still be there when you return.</p>
-        <div class="pause-stats"><span><small>CONTRACT</small><b id="pauseMissionName">THE SILENT COAST</b></span><span><small>DISGUISE</small><b id="pauseDisguise">SUMMIT GUEST</b></span></div>
-        <button class="primary-button" id="resumeMission" type="button"><span>RESUME CONTRACT</span><span class="button-arrow">↗</span></button>
-        <button class="text-button pause-brief" id="restartMission" type="button">RESTART CONTRACT <span>↻</span></button>
-        <button class="text-button pause-brief" id="returnMenu" type="button">ABORT TO MENU <span>↗</span></button>
+    <section class="manual-panel" id="manualPanel" hidden aria-labelledby="manualTitle">
+      <div class="manual-heading"><span>FIELD MANUAL</span><button id="manualClose" type="button" aria-label="Close field manual">×</button></div>
+      <h2 id="manualTitle">MOVE WITH INTENT.</h2>
+      <div class="manual-grid">
+        <div><kbd>W A S D</kbd><span>Move relative to the camera</span></div>
+        <div><kbd>SHIFT</kbd><span>Sprint across the overlook</span></div>
+        <div><kbd>C</kbd><span>Crouch behind low cover</span></div>
+        <div><kbd>RIGHT MOUSE</kbd><span>Hold to aim; drag to adjust</span></div>
+        <div><kbd>LEFT MOUSE</kbd><span>Fire the rifle</span></div>
+        <div><kbd>R</kbd><span>Reload the magazine</span></div>
+        <div><kbd>E</kbd><span>Use the stairwell after the shot</span></div>
+        <div><kbd>ESC</kbd><span>Pause the operation</span></div>
       </div>
+      <p class="manual-note">The camera stays behind your operative. Keep the target in the optic, watch the balcony guards, and leave by the green stairwell marker.</p>
     </section>
 
-    <section class="screen modal-screen" id="endScreen" aria-labelledby="endHeading" hidden>
-      <div class="modal-card end-card">
-        <div class="end-emblem" id="endEmblem">07</div>
-        <div class="eyebrow"><span class="eyebrow-line"></span><span id="endKicker">CONTRACT COMPLETE</span></div>
-        <h2 id="endHeading">A CLEAN EXIT.</h2>
-        <p id="endCopy">The targets are down. The coast is clear.</p>
-        <div class="score-row"><div><small>MISSION RATING</small><b id="missionRating">SILENT ASSASSIN</b></div><div><small>CONTRACT SCORE</small><b id="missionScore">10,000 XP</b></div></div>
-        <button class="primary-button" id="playAgain" type="button"><span>REPLAY CONTRACT</span><span class="button-arrow">↗</span></button>
-        <button class="text-button" id="backToMenu" type="button">RETURN TO CAMPAIGN <span>↗</span></button>
-      </div>
+    <section class="pause-panel" id="pausePanel" hidden aria-labelledby="pauseTitle">
+      <div class="pause-kicker">OPERATION SUSPENDED</div>
+      <h2 id="pauseTitle">HOLD POSITION.</h2>
+      <p>The race keeps moving. Your operation doesn't.</p>
+      <button class="deploy-button" id="resumeButton" type="button"><span>RESUME OPERATION</span><i>↗</i></button>
+      <button class="manual-button" id="restartButton" type="button">RESTART CONTRACT <span>↻</span></button>
     </section>
 
-    <section class="screen manual-screen" id="manualScreen" aria-labelledby="manualHeading" hidden>
-      <div class="manual-card">
-        <button class="icon-button close-button" id="closeManual" type="button" aria-label="Close field manual">×</button>
-        <div class="eyebrow"><span class="eyebrow-line"></span> FIELD MANUAL</div>
-        <h2 id="manualHeading">THE QUIET WAY<br />ISN'T THE ONLY WAY.</h2>
-        <div class="manual-grid">
-          <div><kbd>W A S D</kbd><span>MOVE</span></div><div><kbd>SHIFT</kbd><span>RUN · LOUDER FOOTSTEPS</span></div>
-          <div><kbd>C</kbd><span>CROUCH · REDUCE VISIBILITY</span></div><div><kbd>E</kbd><span>INTERACT · TAKE DISGUISES</span></div>
-          <div><kbd>Q</kbd><span>SUBDUE / ELIMINATE TARGET</span></div><div><kbd>G</kbd><span>DRAG OR DROP A BODY</span></div>
-          <div><kbd>H</kbd><span>HIDE A BODY IN A CONTAINER</span></div><div><kbd>1 2 3</kbd><span>SWITCH EQUIPMENT</span></div>
-          <div><kbd>F</kbd><span>USE EQUIPPED ITEM</span></div><div><kbd>TAB</kbd><span>EXPAND TACTICAL MAP</span></div>
-          <div><kbd>RIGHT DRAG</kbd><span>ORBIT THE 3D CAMERA</span></div><div><kbd>SCROLL</kbd><span>ZOOM THE SCENE</span></div>
-        </div>
-        <div class="manual-note"><span>◈</span> Staff watch restricted doors. Guards notice wrong disguises, drawn weapons, and bodies left in the open. Listen for footsteps and use the crowd to disappear.</div>
-        <button class="primary-button manual-done" id="manualDone" type="button"><span>UNDERSTOOD</span><span class="button-arrow">↗</span></button>
-      </div>
+    <section class="result-panel" id="resultPanel" hidden aria-live="polite">
+      <div class="result-kicker" id="resultKicker">CONTRACT COMPLETE</div>
+      <h2 id="resultTitle">CLEAN EXIT.</h2>
+      <p id="resultCopy">The overlook is quiet again.</p>
+      <button class="deploy-button" id="resultRestart" type="button"><span>RUN IT AGAIN</span><i>↻</i></button>
     </section>
 
-    <footer class="global-footer"><span>© 2026 · FIELD OPERATIONS DIVISION</span><span class="footer-mid"><i></i> ALL SYSTEMS NOMINAL</span><span>SECURE CHANNEL <b>07-A</b></span></footer>
+    <footer class="hud-footer" id="hudFooter" hidden><span>SECURE CHANNEL <b>07-A</b></span><span class="footer-separator">/</span><span id="footerState">ROOFTOP ACCESS · CLEAR</span><span class="footer-right">ESC <i>PAUSE</i></span></footer>
+    <div class="error-panel" id="errorPanel" hidden role="alert"></div>
   </main>
 </body>
 </html>

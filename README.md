@@ -1,52 +1,43 @@
-# The Silent Coast — Field Operations
+# The Highline — Field Operations
 
-A browser-playable **3D** stealth-game prototype inspired by the social-stealth genre. The old 2D canvas presentation has been replaced by a Three.js WebGL scene with animated, license-verified human models, role-specific wardrobe styling, a navigable 3D venue, and a distributed animated crowd. Three original contracts share one reactive sandbox.
+A browser-playable, **third-person 3D** stealth-action vertical slice set above a Miami grand prix. The camera follows behind the operative at shoulder height; it is not a top-down or map-following view. The player can move around an elevated roof, shoulder a scoped rifle, acquire the event director on a VIP balcony, then use the stairwell to leave.
 
-## Run
+## Run locally
 
-Serve the repository over HTTP (ES modules and local GLB assets do not work when opened directly as `file://`):
+Serve this directory over HTTP (the ES modules and local GLB assets cannot load from `file://`):
 
 ```sh
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-Then visit `http://localhost:8000`. The Three.js runtime, GLTF loader, character model, textures, and animations are bundled locally; no runtime CDN is needed for 3D rendering or character assets. A browser with WebGL 2 support is required.
+Open `http://localhost:8000`. Three.js, fonts, the character runtime, and all 3D assets are local; the game does not fetch runtime assets from a CDN. WebGL 2 is required.
 
-## Play
+## Controls
 
-Choose a contract, review its briefing, and deploy. The 3D build includes:
+- **WASD / arrow keys** — move relative to the camera
+- **Shift** — sprint
+- **C** — crouch
+- **Hold right mouse** — aim through the scope; drag to adjust the view
+- **Middle-mouse drag** — orbit the camera when not aiming
+- **Left mouse** — fire
+- **Mouse wheel** — adjust the view / optic magnification
+- **R** — reload
+- **E** — use the service stairwell after the target is down
+- **Esc** — pause / resume
 
-- A perspective, orbitable 3D view of the shared venue, with contract-specific lighting, surfaces, walls, water, furniture, and interactable environmental props.
-- Animated CC0 MakeHuman-derived suited characters for the player and individual NPCs, with role-specific suit colors, badges, lanyards, safety equipment, or security gear. Twelve animated GLB crowd representatives are stratified across the venue and use the same collision-safe 1,120-agent simulation that powers ambient movement and reactions.
-- Smooth idle/walk/run cross-fades with stride speed matched to movement, a lowered crouch silhouette, animated articulated crowd figures, target/enforcer markers, 3D vision cones, active searches, sound-wave rings, and visible weapon fire.
-- Guard, civilian, and target behavior trees with separate knowledge and response rules; nearby members of the 1,120-agent crowd are promoted to individual AI during disturbances.
-- A* navigation, patrol schedules, scripted target opportunities, target evacuation, safe rooms, protective guard perimeters, and role-specific area access.
-- Two white-dot enforcers, light/angle/line-of-sight detection, area-specific disguise compromise, and a central suspicion meter.
-- Body dragging and concealment, exposed-body discovery, civilian reports, guard vital checks, drawn weapons, and local searches/lockdowns.
-- Sound propagation and investigation, environmental disruptions and repair tasks, health, extraction, campaign progress, pause, and a tactical minimap.
+The operation starts with the operative on an elevated service roof, facing the pit-lane balcony. The target moves slightly along the balcony. The rooftop contains a small movement boundary and collision volumes around its service equipment. Missed shots alert security; after the target is down, reach the green stairwell marker and interact to finish the contract.
 
-The detailed cast and the 12 visible crowd representatives share one suited CC0 base model, with role-specific material and accessory variations rather than a unique high-detail mesh for every gender, face, or uniform.
+## Implementation
 
-### Controls
+- `src/game3d.js` owns the Three.js scene, real-time third-person camera, rooftop, circuit, animated cars, skyline, palms, lighting, actors, and shot effects.
+- `src/game.js` owns input, movement, interaction, the contract state, UI, pause, and extraction.
+- `src/human-runtime.js` is a bundled HumanForge runtime. The build uses a CC0 MakeHuman-derived rigged human, a recolored pale-rose short-sleeve shirt texture, a small procedural polo collar, and a locally bundled CC0 scoped rifle.
+- `vendor/` contains Three.js 0.186.1 and the GLTF loader, with the MIT notice in `vendor/THREE-LICENSE.txt`.
 
-- **WASD / arrow keys** — move
-- **Shift** — run (louder footsteps)
-- **C** — toggle crouch
-- **E** — interact with props, change disguise, blend, or extract
-- **Q** — close-quarters takedown
-- **G** — drag / drop a body
-- **H** — hide a body in a nearby container
-- **1 / 2 / 3** — fiber wire / silenced pistol / coin
-- **F** or **left click** — use equipped item
-- **Right-drag / middle-drag** — orbit the 3D camera
-- **Mouse wheel** — zoom the 3D camera
-- **Tab** — expand map
-- **Esc** — pause
+## Asset provenance
 
-## Assets and licences
+- The player and mission characters use HumanForge assets pinned to `2226df1f50a04c5a8e1c02ea33780d28337dfbb1`. The runtime is MIT; the model, skin, rig, and selected garments are CC0 1.0. Details and the upstream license text are in [`assets/humanforge/CREDITS.md`](assets/humanforge/CREDITS.md).
+- The rifle mesh is the Styloo sniper rifle credited CC0 1.0 by [`zees-games/arena-weapons`](https://github.com/zees-games/arena-weapons); its source and texture derivative are documented in [`assets/weapons/CREDITS.md`](assets/weapons/CREDITS.md).
+- UI fonts are bundled from Fontsource packages under the SIL Open Font License. Their license texts are in `assets/fonts/`.
 
-- `vendor/three.module.js`, `vendor/three.core.js`, and the selected Three.js addon modules are from Three.js **0.186.1**, licensed under the MIT License; see `vendor/THREE-LICENSE.txt`.
-- `assets/characters/suited.glb` is a MakeHuman / MPFB2-derived model released under **CC0 1.0**. Its upstream source commit, model attribution, texture notes, and animation provenance are documented in [`assets/characters/CREDITS.md`](assets/characters/CREDITS.md).
-- Additional verified CC0 source models (`human.glb` and `man.glb`) are retained alongside the suited model; the current close-up cast uses the suited model so wardrobe differences remain visible and characters stay clothed.
-
-This is an original stealth-game prototype and does not use proprietary game assets. Some gameplay systems remain prototype implementations and should not be treated as production-tested simulations.
+The scene is an original, compact gameplay slice, not a full commercial game. It does not include proprietary franchise assets or game-rip models.
